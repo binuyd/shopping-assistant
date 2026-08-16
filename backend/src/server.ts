@@ -1,6 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
+import productRoutes from './routes/products.js'
 
 dotenv.config()
 
@@ -14,6 +15,8 @@ app.get('/', (_req, res) => {
     message: 'AI Shop Backend is running'
   })
 })
+
+app.use('/api/products', productRoutes)
 
 const PORT = Number(process.env.PORT) || 5000
 
