@@ -13,5 +13,5 @@ export interface Product {
   stock: number
   description: string | null
   image_url: string | null
-  created_at: string
+  created_at?: string
 }

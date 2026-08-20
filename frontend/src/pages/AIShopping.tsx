@@ -1,25 +1,12 @@
 import { useState, useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, Link } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { sendMessage } from '../api'
+import { useCompare } from '../context/CompareContext'
+import { Scale, Check, Star } from 'lucide-react'
 
-interface Product {
-  id: string
-  name: string
-  category: string
-  brand: string
-  price: number
-  ram: number | null
-  storage: number | null
-  cpu: string | null
-  gpu: string | null
-  battery_hours: number | null
-  rating: number
-  stock: number
-  description: string | null
-  image_url: string | null
-}
+import type { Product } from '../types/product'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -534,171 +521,113 @@ function ProductResult({
 }: {
   product: Product
 }) {
+  const { addToCompare, removeFromCompare, isInCompare } = useCompare()
+  const inCompare = isInCompare(product.id)
 
   return (
-    <div className="overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:shadow-md">
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs transition hover:shadow-md">
 
       {/* Image */}
-
       {product.image_url ? (
-
         <img
           src={product.image_url}
           alt={product.name}
           className="h-44 w-full object-cover"
         />
-
       ) : (
-
-        <div className="flex h-44 items-center justify-center bg-gray-100 text-4xl">
+        <div className="flex h-44 items-center justify-center bg-slate-100 text-4xl">
           💻
         </div>
-
       )}
 
-
       {/* Content */}
-
       <div className="p-5">
-
         <div className="flex items-start justify-between gap-3">
-
           <div>
-
-            <p className="text-xs font-medium uppercase text-blue-600">
+            <p className="text-xs font-semibold uppercase text-blue-600">
               {product.brand}
             </p>
-
-            <h3 className="mt-1 font-bold text-gray-900">
+            <h3 className="mt-1 font-bold text-slate-900 line-clamp-1">
               {product.name}
             </h3>
-
           </div>
-
-          <span className="whitespace-nowrap text-lg font-bold text-blue-600">
+          <span className="whitespace-nowrap text-lg font-extrabold text-blue-600">
             ${product.price}
           </span>
-
         </div>
-
 
         {/* Rating */}
-
-        <div className="mt-3 flex items-center gap-2 text-sm">
-
-          <span className="text-yellow-500">
-            ★
-          </span>
-
-          <span className="font-medium">
-            {product.rating}
-          </span>
-
+        <div className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+          <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+          <span>{product.rating}</span>
+          <span className="text-slate-400">/ 5</span>
         </div>
-
 
         {/* Specs */}
-
         <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-
           {product.cpu && (
-            <div className="rounded-lg bg-gray-50 p-2">
-              <span className="block text-gray-400">
-                CPU
-              </span>
-
-              <span className="font-medium text-gray-700">
-                {product.cpu}
-              </span>
+            <div className="rounded-lg bg-slate-50 p-2 border border-slate-100">
+              <span className="block text-[10px] text-slate-400 font-semibold uppercase">CPU</span>
+              <span className="font-medium text-slate-700 truncate block">{product.cpu}</span>
             </div>
           )}
-
           {product.ram && (
-            <div className="rounded-lg bg-gray-50 p-2">
-              <span className="block text-gray-400">
-                RAM
-              </span>
-
-              <span className="font-medium text-gray-700">
-                {product.ram} GB
-              </span>
+            <div className="rounded-lg bg-slate-50 p-2 border border-slate-100">
+              <span className="block text-[10px] text-slate-400 font-semibold uppercase">RAM</span>
+              <span className="font-medium text-slate-700">{product.ram} GB</span>
             </div>
           )}
-
           {product.storage && (
-            <div className="rounded-lg bg-gray-50 p-2">
-              <span className="block text-gray-400">
-                Storage
-              </span>
-
-              <span className="font-medium text-gray-700">
-                {product.storage} GB
-              </span>
+            <div className="rounded-lg bg-slate-50 p-2 border border-slate-100">
+              <span className="block text-[10px] text-slate-400 font-semibold uppercase">Storage</span>
+              <span className="font-medium text-slate-700">{product.storage} GB</span>
             </div>
           )}
-
           {product.battery_hours && (
-            <div className="rounded-lg bg-gray-50 p-2">
-              <span className="block text-gray-400">
-                Battery
-              </span>
-
-              <span className="font-medium text-gray-700">
-                {product.battery_hours}h
-              </span>
+            <div className="rounded-lg bg-slate-50 p-2 border border-slate-100">
+              <span className="block text-[10px] text-slate-400 font-semibold uppercase">Battery</span>
+              <span className="font-medium text-slate-700">{product.battery_hours}h</span>
             </div>
           )}
-
         </div>
 
-
-        {/* Description */}
-
-        {product.description && (
-
-          <p className="mt-4 line-clamp-2 text-xs leading-5 text-gray-500">
-            {product.description}
-          </p>
-
-        )}
-
         {/* Actions */}
-
         <div className="mt-4 flex gap-2">
-
-          <a
-            href={`/products/${product.id}`}
-            className="flex-1 rounded-lg bg-gray-900 px-3 py-2 text-center text-xs font-medium text-white transition hover:bg-gray-800"
+          <Link
+            to={`/products/${product.id}`}
+            className="flex-1 rounded-xl bg-slate-900 px-3 py-2 text-center text-xs font-semibold text-white transition hover:bg-slate-800"
           >
             View Specs
-          </a>
+          </Link>
 
           <button
             onClick={() => {
-              const current = JSON.parse(
-                localStorage.getItem('compareProducts') || '[]'
-              )
-              if (current.some((p: Product) => p.id === product.id)) {
-                alert('This product is already in your compare list.')
-                return
+              if (inCompare) {
+                removeFromCompare(product.id)
+              } else {
+                addToCompare(product)
               }
-              if (current.length >= 3) {
-                alert('You can compare up to 3 products at a time.')
-                return
-              }
-              const updated = [...current, product]
-              localStorage.setItem('compareProducts', JSON.stringify(updated))
-              alert(`${product.name} added to compare list!`)
             }}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-center text-xs font-medium text-gray-700 transition hover:bg-gray-50"
+            className={`flex items-center justify-center gap-1 rounded-xl px-3 py-2 text-xs font-semibold transition ${
+              inCompare
+                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+            }`}
           >
-            + Compare
+            {inCompare ? (
+              <>
+                <Check className="h-3.5 w-3.5 text-emerald-600" />
+                <span>In Compare</span>
+              </>
+            ) : (
+              <>
+                <Scale className="h-3.5 w-3.5 text-slate-500" />
+                <span>+ Compare</span>
+              </>
+            )}
           </button>
-
         </div>
-
       </div>
-
     </div>
   )
 }

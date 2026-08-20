@@ -1,78 +1,91 @@
 import { Link, useLocation } from 'react-router-dom'
+import { useCompare } from '../context/CompareContext'
+import { Laptop, Sparkles, Scale, Grid, Home as HomeIcon } from 'lucide-react'
 
 export default function Navbar() {
   const location = useLocation()
+  const { compareProducts } = useCompare()
 
   const isActive = (path: string) => {
     return location.pathname === path
   }
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
+    <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur-md transition-all">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
 
         {/* Logo */}
         <Link
           to="/"
-          className="flex items-center gap-2 text-xl font-bold tracking-tight text-gray-900"
+          className="flex items-center gap-2.5 group text-xl font-bold tracking-tight text-slate-900 transition"
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-lg text-white shadow-xs">
-            💻
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
+            <Laptop className="h-5 w-5" />
           </span>
-          <span>Lap<span className="text-blue-600">Mart</span></span>
+          <span className="font-extrabold tracking-tight">
+            Lap<span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Mart</span>
+          </span>
         </Link>
 
         {/* Navigation */}
-        <div className="flex items-center gap-8">
+        <nav className="flex items-center gap-2 sm:gap-6">
 
           <Link
             to="/"
-            className={`text-sm font-medium transition ${
+            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-all ${
               isActive('/')
-                ? 'text-blue-600 font-semibold'
-                : 'text-gray-600 hover:text-blue-600'
+                ? 'text-blue-600 bg-blue-50/80 font-semibold'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
-            Home
+            <HomeIcon className="h-4 w-4" />
+            <span className="hidden sm:inline">Home</span>
           </Link>
 
           <Link
             to="/products"
-            className={`text-sm font-medium transition ${
+            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-all ${
               isActive('/products')
-                ? 'text-blue-600 font-semibold'
-                : 'text-gray-600 hover:text-blue-600'
+                ? 'text-blue-600 bg-blue-50/80 font-semibold'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
-            Products
+            <Grid className="h-4 w-4" />
+            <span>Products</span>
           </Link>
 
           <Link
             to="/compare"
-            className={`text-sm font-medium transition ${
+            className={`relative flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-all ${
               isActive('/compare')
-                ? 'text-blue-600 font-semibold'
-                : 'text-gray-600 hover:text-blue-600'
+                ? 'text-blue-600 bg-blue-50/80 font-semibold'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
-            Compare
+            <Scale className="h-4 w-4" />
+            <span>Compare</span>
+            {compareProducts.length > 0 && (
+              <span className="ml-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-blue-600 px-1.5 text-xs font-bold text-white shadow-xs animate-pulse">
+                {compareProducts.length}
+              </span>
+            )}
           </Link>
 
           <Link
             to="/ai-shopping"
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-medium transition ${
+            className={`ml-1 sm:ml-2 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all shadow-xs ${
               isActive('/ai-shopping')
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-blue-500/25 shadow-md'
+                : 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 hover:from-blue-100 hover:to-indigo-100 border border-blue-200/60'
             }`}
           >
-            <span>✨</span>
+            <Sparkles className="h-4 w-4 text-amber-500 animate-spin-slow" />
             <span>AI Assistant</span>
           </Link>
 
-        </div>
+        </nav>
 
       </div>
-    </nav>
+    </header>
   )
-}
+}
