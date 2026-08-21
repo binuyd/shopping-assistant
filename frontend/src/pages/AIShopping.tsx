@@ -1,10 +1,18 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useLocation, Link } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { sendMessage } from '../api'
 import { useCompare } from '../context/CompareContext'
-import { Scale, Check, Star } from 'lucide-react'
+import { Scale, Check, Star, Mic, MicOff } from 'lucide-react'
+
+// Declare Web Speech API interface for TypeScript
+declare global {
+  interface Window {
+    SpeechRecognition: any
+    webkitSpeechRecognition: any
+  }
+}
 
 import type { Product } from '../types/product'
 
@@ -40,12 +48,65 @@ export default function AIShopping() {
   }, [location.state])
 
   const [input, setInput] = useState('')
-
   const [loading, setLoading] = useState(false)
+  const [isListening, setIsListening] = useState(false)
+  const recognitionRef = useRef<any>(null)
+
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition()
+      recognition.continuous = false
+      recognition.interimResults = true
+      recognition.lang = 'en-US'
+
+      recognition.onresult = (event: any) => {
+        const transcript = Array.from(event.results)
+          .map((result: any) => result[0].transcript)
+          .join('')
+        setInput(transcript)
+      }
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error)
+        setIsListening(false)
+      }
+
+      recognition.onend = () => {
+        setIsListening(false)
+      }
+
+      recognitionRef.current = recognition
+    }
+  }, [])
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+      alert('Speech recognition is not supported in this browser. Please use Chrome or Edge.')
+      return
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop()
+      setIsListening(false)
+    } else {
+      try {
+        recognitionRef.current.start()
+        setIsListening(true)
+      } catch (err) {
+        console.error('Error starting speech recognition:', err)
+      }
+    }
+  }
 
   const handleSend = async () => {
 
     if (!input.trim() || loading) return
+
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop()
+      setIsListening(false)
+    }
 
     const userMessage: Message = {
       role: 'user',
@@ -419,9 +480,31 @@ export default function AIShopping() {
 
                   }}
                   disabled={loading}
-                  placeholder="What are you looking for?"
-                  className="flex-1 rounded-xl border px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100"
+                  placeholder={isListening ? "Listening... Speak now!" : "What are you looking for?"}
+                  className={`flex-1 rounded-xl border px-4 py-3 text-sm outline-none transition disabled:bg-gray-100 ${
+                    isListening
+                      ? 'border-red-400 bg-red-50 focus:ring-2 focus:ring-red-200 placeholder-red-400 font-medium'
+                      : 'focus:border-blue-500 focus:ring-2 focus:ring-blue-100'
+                  }`}
                 />
+
+                <button
+                  type="button"
+                  onClick={toggleListening}
+                  disabled={loading}
+                  title={isListening ? "Stop listening" : "Start voice input"}
+                  className={`flex items-center justify-center rounded-xl px-4 py-3 transition ${
+                    isListening
+                      ? 'bg-red-500 text-white animate-pulse hover:bg-red-600'
+                      : 'border border-gray-300 text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                  }`}
+                >
+                  {isListening ? (
+                    <MicOff className="h-5 w-5" />
+                  ) : (
+                    <Mic className="h-5 w-5" />
+                  )}
+                </button>
 
                 <button
                   onClick={handleSend}
