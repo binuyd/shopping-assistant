@@ -1,4 +1,4 @@
-# 🛒 NextGen AI Shopping Assistant & Laptop Discovery Platform
+# 🛒 AI Shopping Assistant 
 
 A full-stack, AI-powered e-commerce shopping platform built with **React 19**, **TypeScript**, **Node.js/Express**, and **Groq LLM Integration**. Featuring voice search input, context-aware AI recommendations, dual-mode customer support assistance, and a multi-product spec comparison workbench.
 
