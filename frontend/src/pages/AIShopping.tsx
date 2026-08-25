@@ -23,6 +23,7 @@ interface Message {
 
 export default function AIShopping() {
   const location = useLocation()
+  const [activeTab, setActiveTab] = useState<'shopping' | 'customercare'>('shopping')
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -31,6 +32,28 @@ export default function AIShopping() {
         "Hi! 👋 I'm your AI shopping assistant. Tell me what you're looking for and I'll find the best products for you."
     }
   ])
+
+  // Handle switching tabs
+  const handleTabSwitch = (tab: 'shopping' | 'customercare') => {
+    setActiveTab(tab)
+    if (tab === 'customercare') {
+      setMessages([
+        {
+          role: 'assistant',
+          content:
+            "Hello! 🎧 Welcome to Customer Care & Support. How can I help you today? Ask me about order tracking, shipping, returns, warranty, or store policies!"
+        }
+      ])
+    } else {
+      setMessages([
+        {
+          role: 'assistant',
+          content:
+            "Hi! 👋 I'm your AI shopping assistant. Tell me what you're looking for and I'll find the best products for you."
+        }
+      ])
+    }
+  }
 
   const [products, setProducts] = useState<Product[]>([])
 
@@ -180,22 +203,56 @@ export default function AIShopping() {
 
         <div className="mx-auto max-w-7xl px-6 py-8">
 
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
 
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 text-2xl">
-              🤖
+            <div className="flex items-center gap-4">
+
+              <div className={`flex h-12 w-12 items-center justify-center rounded-xl text-2xl transition ${
+                activeTab === 'customercare' ? 'bg-indigo-600 text-white' : 'bg-blue-600 text-white'
+              }`}>
+                {activeTab === 'customercare' ? '🎧' : '🤖'}
+              </div>
+
+              <div>
+
+                <h1 className="text-3xl font-bold text-gray-900">
+                  {activeTab === 'customercare' ? 'Customer Care & Support' : 'AI Shopping Assistant'}
+                </h1>
+
+                <p className="mt-1 text-gray-500">
+                  {activeTab === 'customercare' 
+                    ? 'Get 24/7 instant support for orders, returns, warranty & FAQs.'
+                    : 'Tell me what you need and I\'ll find the best products.'}
+                </p>
+
+              </div>
+
             </div>
 
-            <div>
-
-              <h1 className="text-3xl font-bold text-gray-900">
-                AI Shopping Assistant
-              </h1>
-
-              <p className="mt-1 text-gray-500">
-                Tell me what you need and I'll find the best products.
-              </p>
-
+            {/* Mode Switcher Tabs */}
+            <div className="flex rounded-xl bg-gray-100 p-1 border border-gray-200">
+              <button
+                onClick={() => handleTabSwitch('shopping')}
+                className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition ${
+                  activeTab === 'shopping'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <span>🛍️</span>
+                <span>Shopping AI</span>
+              </button>
+              <button
+                onClick={() => handleTabSwitch('customercare')}
+                className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition ${
+                  activeTab === 'customercare'
+                    ? 'bg-white text-indigo-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <span>🎧</span>
+                <span>Customer Care</span>
+              </button>
             </div>
 
           </div>
@@ -223,7 +280,7 @@ export default function AIShopping() {
               <div>
 
                 <h2 className="font-semibold text-gray-900">
-                  Shopping Assistant
+                  {activeTab === 'customercare' ? 'Customer Support Agent' : 'Shopping Assistant'}
                 </h2>
 
                 <div className="mt-1 flex items-center gap-2">
@@ -231,12 +288,20 @@ export default function AIShopping() {
                   <span className="h-2 w-2 rounded-full bg-green-500" />
 
                   <span className="text-xs text-gray-500">
-                    AI assistant online
+                    {activeTab === 'customercare' ? 'Customer Care AI live' : 'AI assistant online'}
                   </span>
 
                 </div>
 
               </div>
+
+              <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                activeTab === 'customercare' 
+                  ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' 
+                  : 'bg-blue-50 text-blue-700 border border-blue-200'
+              }`}>
+                {activeTab === 'customercare' ? '🎧 Customer Support Mode' : '🛍️ Product Finder Mode'}
+              </span>
 
             </div>
 
@@ -260,7 +325,7 @@ export default function AIShopping() {
 
                       <div
                         className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-6 ${message.role === 'user'
-                          ? 'bg-blue-600 text-white'
+                          ? activeTab === 'customercare' ? 'bg-indigo-600 text-white' : 'bg-blue-600 text-white'
                           : 'border bg-gray-50 text-gray-800'
                           }`}
                       >
@@ -403,7 +468,7 @@ export default function AIShopping() {
                         />
 
                         <span className="ml-2 text-sm text-gray-500">
-                          Searching products...
+                          {activeTab === 'customercare' ? 'Checking support policy & assistance...' : 'Searching products...'}
                         </span>
 
                       </div>
@@ -429,12 +494,17 @@ export default function AIShopping() {
 
               <div className="flex flex-wrap gap-2">
 
-                {[
+                {(activeTab === 'customercare' ? [
+                  'What is your return policy?',
+                  'How long does shipping take?',
+                  'How do I track my order?',
+                  'Do products have warranty coverage?'
+                ] : [
                   'Laptop under $800 with 16GB RAM',
                   'Best laptop for programming',
                   'Show me Lenovo laptops',
                   'Laptop under $700'
-                ].map(
+                ]).map(
                   suggestion => (
 
                     <button
@@ -444,7 +514,11 @@ export default function AIShopping() {
                           suggestion
                         )
                       }
-                      className="rounded-full border px-3 py-2 text-xs text-gray-600 transition hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600"
+                      className={`rounded-full border px-3 py-2 text-xs transition ${
+                        activeTab === 'customercare'
+                          ? 'text-indigo-700 hover:border-indigo-500 hover:bg-indigo-50'
+                          : 'text-gray-600 hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600'
+                      }`}
                     >
                       {suggestion}
                     </button>
@@ -480,10 +554,18 @@ export default function AIShopping() {
 
                   }}
                   disabled={loading}
-                  placeholder={isListening ? "Listening... Speak now!" : "What are you looking for?"}
+                  placeholder={
+                    isListening
+                      ? "Listening... Speak now!"
+                      : activeTab === 'customercare'
+                      ? "Ask a customer care question (e.g. returns, warranty, shipping)..."
+                      : "What are you looking for?"
+                  }
                   className={`flex-1 rounded-xl border px-4 py-3 text-sm outline-none transition disabled:bg-gray-100 ${
                     isListening
                       ? 'border-red-400 bg-red-50 focus:ring-2 focus:ring-red-200 placeholder-red-400 font-medium'
+                      : activeTab === 'customercare'
+                      ? 'focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100'
                       : 'focus:border-blue-500 focus:ring-2 focus:ring-blue-100'
                   }`}
                 />
@@ -512,7 +594,11 @@ export default function AIShopping() {
                     loading ||
                     !input.trim()
                   }
-                  className="rounded-xl bg-blue-600 px-6 py-3 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  className={`rounded-xl px-6 py-3 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                    activeTab === 'customercare'
+                      ? 'bg-indigo-600 hover:bg-indigo-700'
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
                 >
                   {loading
                     ? '...'
