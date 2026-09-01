@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { getProduct } from '../api'
 import { useCompare } from '../context/CompareContext'
+import { useCart } from '../context/CartContext'
+import { useAuth } from '../context/AuthContext'
 import type { Product } from '../types/product'
 import { 
   ArrowLeft, 
@@ -15,13 +17,16 @@ import {
   Battery, 
   CheckCircle2, 
   XCircle,
-  ShieldCheck
+  ShieldCheck,
+  ShoppingCart
 } from 'lucide-react'
 
 export default function ProductDetails() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { addToCompare, removeFromCompare, isInCompare } = useCompare()
+  const { addToCart } = useCart()
+  const { user } = useAuth()
 
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
@@ -225,6 +230,20 @@ export default function ProductDetails() {
             >
               {inCompare ? <Check className="h-4 w-4" /> : <Scale className="h-4 w-4" />}
               <span>{inCompare ? 'In Comparison Workbench' : 'Add to Compare Workbench'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => addToCart(product)}
+              className={`inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-sm font-bold transition ${
+                user
+                  ? 'bg-slate-900 text-white hover:bg-slate-800'
+                  : 'cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-500'
+              }`}
+              title={user ? 'Add to cart' : 'Login required to add to cart'}
+            >
+              <ShoppingCart className="h-4 w-4" />
+              <span>{user ? 'Add to Cart' : 'Login to Add Cart'}</span>
             </button>
 
             <button

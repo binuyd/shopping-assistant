@@ -1,20 +1,29 @@
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useCompare } from '../context/CompareContext'
-import { Laptop, Sparkles, Scale, Grid, Home as HomeIcon } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
+import { useCart } from '../context/CartContext'
+import { Laptop, Sparkles, Scale, Grid, Home as HomeIcon, ShoppingCart, LogIn, LogOut } from 'lucide-react'
 
 export default function Navbar() {
   const location = useLocation()
+  const navigate = useNavigate()
   const { compareProducts } = useCompare()
+  const { user, signOut } = useAuth()
+  const { totalItems } = useCart()
 
   const isActive = (path: string) => {
     return location.pathname === path
+  }
+
+  const handleSignOut = async () => {
+    await signOut()
+    navigate('/')
   }
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur-md transition-all">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
 
-        {/* Logo */}
         <Link
           to="/"
           className="flex items-center gap-2.5 group text-xl font-bold tracking-tight text-slate-900 transition"
@@ -27,9 +36,7 @@ export default function Navbar() {
           </span>
         </Link>
 
-        {/* Navigation */}
         <nav className="flex items-center gap-2 sm:gap-6">
-
           <Link
             to="/"
             className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-all ${
@@ -72,6 +79,23 @@ export default function Navbar() {
           </Link>
 
           <Link
+            to="/cart"
+            className={`relative flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-all ${
+              isActive('/cart')
+                ? 'text-blue-600 bg-blue-50/80 font-semibold'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+            }`}
+          >
+            <ShoppingCart className="h-4 w-4" />
+            <span>Cart</span>
+            {totalItems > 0 && (
+              <span className="ml-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-blue-600 px-1.5 text-xs font-bold text-white shadow-xs animate-pulse">
+                {totalItems}
+              </span>
+            )}
+          </Link>
+
+          <Link
             to="/ai-shopping"
             className={`ml-1 sm:ml-2 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all shadow-xs ${
               isActive('/ai-shopping')
@@ -83,8 +107,25 @@ export default function Navbar() {
             <span>AI Assistant & Care</span>
           </Link>
 
+          {user ? (
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Logout</span>
+            </button>
+          ) : (
+            <Link
+              to="/auth"
+              className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+            >
+              <LogIn className="h-4 w-4" />
+              <span>Login</span>
+            </Link>
+          )}
         </nav>
-
       </div>
     </header>
   )

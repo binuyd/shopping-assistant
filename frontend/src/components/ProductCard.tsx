@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom'
 import type { Product } from '../types/product'
 import { useCompare } from '../context/CompareContext'
-import { Star, Scale, Check, ExternalLink, Cpu, Zap, HardDrive, Battery } from 'lucide-react'
+import { useCart } from '../context/CartContext'
+import { useAuth } from '../context/AuthContext'
+import { Star, Scale, Check, ExternalLink, Cpu, Zap, HardDrive, Battery, ShoppingCart } from 'lucide-react'
 
 interface ProductCardProps {
   product: Product
@@ -9,6 +11,8 @@ interface ProductCardProps {
 
 export default function ProductCard({ product }: ProductCardProps) {
   const { addToCompare, removeFromCompare, isInCompare } = useCompare()
+  const { addToCart } = useCart()
+  const { user } = useAuth()
   const inCompare = isInCompare(product.id)
 
   const handleCompareClick = (e: React.MouseEvent) => {
@@ -19,6 +23,12 @@ export default function ProductCard({ product }: ProductCardProps) {
     } else {
       addToCompare(product)
     }
+  }
+
+  const handleCartClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    addToCart(product)
   }
 
   return (
@@ -123,6 +133,19 @@ export default function ProductCard({ product }: ProductCardProps) {
           </div>
 
           <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleCartClick}
+              className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-semibold shadow-xs transition-colors ${
+                user
+                  ? 'bg-blue-600 hover:bg-blue-500 text-white'
+                  : 'bg-slate-200 text-slate-600 cursor-not-allowed'
+              }`}
+              title={user ? 'Add to cart' : 'Login required to add to cart'}
+            >
+              <ShoppingCart className="h-3 w-3" />
+              <span>{user ? 'Add to Cart' : 'Login to Cart'}</span>
+            </button>
             <Link
               to={`/products/${product.id}`}
               className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 hover:bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white shadow-xs transition-colors"
