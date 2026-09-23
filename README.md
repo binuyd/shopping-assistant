@@ -1,18 +1,18 @@
-# 🛒 AI Shopping Assistant 
+# AI Shopping Assistant 
 
 A full-stack, AI-powered e-commerce shopping platform built with **React 19**, **TypeScript**, **Node.js/Express**, and **Groq LLM Integration**. Featuring voice search input, context-aware AI recommendations, dual-mode customer support assistance, and a multi-product spec comparison workbench.
 
 ---
 
-## ✨ Features
+## Features
 
-- 🧠 **AI Shopping Assistant**: Conversational AI tailored for recommending laptops based on budget, performance requirements (gaming, coding, editing), battery life, and portability.
-- 🎙️ **Voice Search & Speech Input**: Integrated browser-native **Web Speech API** for hands-free audio prompt dictation directly into the chat box.
-- 🎧 **Dual-Mode Customer Support**: Seamless transition between shopping recommendations and customer support / service queries.
-- ⚖️ **Interactive Comparison Workbench**: Compare multiple laptops side-by-side with real-time difference highlighting, spec breakdown, and dynamic counter badges via React Context API (`CompareContext`).
-- 🔍 **Advanced Filtering & Catalog**: Multi-criteria catalog filtering by price range, brand, processor, RAM, and GPU.
-- 📝 **Rich Markdown AI Responses**: Rendered with `react-markdown` and `remark-gfm` for structured spec breakdowns and bullet points.
-- ⚡ **High Performance Backend**: Node.js + Express backend powered by **Groq Cloud (LLM Engine)** and **Supabase Database** integration.
+-  **AI Shopping Assistant**: Conversational AI tailored for recommending laptops based on budget, performance requirements (gaming, coding, editing), battery life, and portability.
+-  **Voice Search & Speech Input**: Integrated browser-native **Web Speech API** for hands-free audio prompt dictation directly into the chat box.
+-  **Dual-Mode Customer Support**: Seamless transition between shopping recommendations and customer support / service queries.
+-  **Interactive Comparison Workbench**: Compare multiple laptops side-by-side with real-time difference highlighting, spec breakdown, and dynamic counter badges via React Context API (`CompareContext`).
+-  **Advanced Filtering & Catalog**: Multi-criteria catalog filtering by price range, brand, processor, RAM, and GPU.
+-  **Rich Markdown AI Responses**: Rendered with `react-markdown` and `remark-gfm` for structured spec breakdowns and bullet points.
+-  **High Performance Backend**: Node.js + Express backend powered by **Groq Cloud (LLM Engine)** and **Supabase Database** integration.
 
 ---
 
@@ -58,7 +58,7 @@ shopping-assistant/
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - **Node.js** (v18 or higher recommended)
