@@ -112,24 +112,6 @@ shopping-assistant/
 
 ---
 
-## 🔌 API Endpoints
-
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `POST` | `/api/chat` | Sends message history to Groq LLM service and receives AI shopping recommendations |
-| `GET` | `/api/products` | Retrieves product catalog from database / fallback repository |
-| `GET` | `/api/products/:id` | Retrieves detailed information for a specific product |
-
----
-
-## 💡 Key Highlights for Portfolio & Resume
-
-- **LLM Integration & Prompt Design**: Implemented server-side prompt engineering using Groq SDK to guarantee structured, accurate product suggestions.
-- **Voice User Interface (VUI)**: Built real-time speech recognition hook using browser-native APIs for improved UX accessibility.
-- **Complex UI State Management**: Architected global state via React Context for managing product selections, dynamic comparison counters, and modal notifications without external heavy dependencies.
-
----
-
 ## 📄 License
 
 This project is open source and available under the [MIT License](LICENSE).
