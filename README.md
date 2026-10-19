@@ -1,4 +1,4 @@
-# 🛒 AI Shopping Assistant
+# 🛒 AI Shopping Assistant 
 
 A full-stack, AI-powered e-commerce platform that uses **LLM Function Calling (Agentic Tool Use)** to deliver product recommendations grounded in real database records — not hallucinated specs. Built with **React 19**, **TypeScript**, **Node.js/Express**, **Groq**, and **Supabase**.
 
@@ -47,24 +47,15 @@ The AI can resolve products by **human-readable name** (e.g. "Dell Inspiron 15")
 
 ---
 
-## ✨ Features
+## Features
 
-### AI & Chat
-- 🤖 **Agentic AI Assistant** — Conversational LLM with function calling that queries real inventory data
-- 🎧 **Dual-Mode Chat** — Seamlessly switch between Shopping Assistant and Customer Care & Support (shipping, returns, warranty, store policies)
-- 📝 **Rich Markdown Responses** — AI outputs rendered with `react-markdown` + `remark-gfm` for structured spec breakdowns, tables, and bullet points
-- 🎙️ **Voice Search** — Hands-free voice input powered by the browser-native Web Speech API
-
-### Shopping & Catalog
-- 🔍 **Advanced Filtering** — Filter products by price range, brand, CPU, RAM, and GPU
-- ⚖️ **Comparison Workbench** — Compare up to 3 products side-by-side with real-time difference highlighting and best-spec badges
-- 🛒 **Shopping Cart** — Full cart system with quantity management, synced to Supabase for logged-in users and localStorage for guests
-- 🔐 **Authentication** — Sign up / Sign in via Supabase Auth with session persistence
-
-### UX & Polish
-- 🔔 **Toast Notifications** — Context-aware success, warning, and info toasts for cart and compare actions
-- 💾 **Persistent State** — Compare list and cart survive page refreshes via localStorage + Supabase sync
-- 📱 **Responsive Design** — Mobile-first layout with TailwindCSS v4
+- 🧠 **AI Shopping Assistant**: Conversational AI tailored for recommending laptops based on budget, performance requirements (gaming, coding, editing), battery life, and portability.
+- 🎙️ **Voice Search & Speech Input**: Integrated browser-native **Web Speech API** for hands-free audio prompt dictation directly into the chat box.
+- 🎧 **Dual-Mode Customer Support**: Seamless transition between shopping recommendations and customer support / service queries.
+- ⚖️ **Interactive Comparison Workbench**: Compare multiple laptops side-by-side with real-time difference highlighting, spec breakdown, and dynamic counter badges via React Context API (`CompareContext`).
+- 🔍 **Advanced Filtering & Catalog**: Multi-criteria catalog filtering by price range, brand, processor, RAM, and GPU.
+- 📝 **Rich Markdown AI Responses**: Rendered with `react-markdown` and `remark-gfm` for structured spec breakdowns and bullet points.
+- ⚡ **High Performance Backend**: Node.js + Express backend powered by **Groq Cloud (LLM Engine)** and **Supabase Database** integration.
 
 ---
 
@@ -153,7 +144,7 @@ shopping-assistant/
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -224,175 +215,21 @@ The app will run on `http://localhost:5173`.
 
 ---
 
-## 🗄️ Database Schema
-
-Create a `products` table in your Supabase project:
-
-| Column | Type | Description |
-|:-------|:-----|:------------|
-| `id` | `uuid` (PK) | Auto-generated product ID |
-| `name` | `text` | Product name |
-| `category` | `text` | e.g. `laptop`, `phone`, `tablet` |
-| `brand` | `text` | Manufacturer name |
-| `price` | `numeric` | Price in USD |
-| `ram` | `integer` | RAM in GB |
-| `storage` | `integer` | Storage in GB |
-| `cpu` | `text` | Processor model |
-| `gpu` | `text` | Graphics card |
-| `battery_hours` | `numeric` | Battery life in hours |
-| `rating` | `numeric` | Product rating (0–5) |
-| `stock` | `integer` | Available stock count |
-| `description` | `text` | Product description |
-| `image_url` | `text` | Product image URL |
-| `created_at` | `timestamptz` | Auto-generated timestamp |
-
-For cart sync, create a `cart_items` table:
-
-| Column | Type | Description |
-|:-------|:-----|:------------|
-| `user_id` | `uuid` (FK) | References `auth.users.id` |
-| `product_id` | `uuid` | Product ID |
-| `product_name` | `text` | Product name |
-| `price` | `numeric` | Price at time of addition |
-| `image_url` | `text` | Product image |
-| `quantity` | `integer` | Item quantity |
-| `created_at` | `timestamptz` | Auto-generated timestamp |
-
-> **Unique constraint** on `(user_id, product_id)` for upsert support.
-
----
-
-## 🔌 API Reference
+## 🔌 API Endpoints
 
 | Method | Endpoint | Description |
-|:-------|:---------|:------------|
-| `GET` | `/api/products` | Get all products, ordered by rating |
-| `GET` | `/api/products/search` | Search with query params: `category`, `max_price`, `min_ram`, `brand` |
-| `POST` | `/api/chat` | Send chat messages array, returns `{ message, products }` |
-| `GET` | `/api/test-groq` | Health check — verifies Groq API connectivity |
-| `GET` | `/api/groq-models` | List available Groq models |
-
-### Chat Endpoint Example
-
-**Request:**
-```json
-POST /api/chat
-{
-  "messages": [
-    { "role": "user", "content": "Find me a gaming laptop under $1500" }
-  ]
-}
-```
-
-**Response:**
-```json
-{
-  "message": "Here are the top gaming laptops under $1500...",
-  "products": [
-    {
-      "id": "uuid-here",
-      "name": "ASUS ROG Strix G16",
-      "price": 1399,
-      "ram": 16,
-      "cpu": "Intel i7-13650HX",
-      "gpu": "NVIDIA RTX 4060",
-      "rating": 4.6
-    }
-  ]
-}
-```
+| :--- | :--- | :--- |
+| `POST` | `/api/chat` | Sends message history to Groq LLM service and receives AI shopping recommendations |
+| `GET` | `/api/products` | Retrieves product catalog from database / fallback repository |
+| `GET` | `/api/products/:id` | Retrieves detailed information for a specific product |
 
 ---
 
-## 🏗️ Architecture Overview
+## 💡 Key Highlights for Portfolio & Resume
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                   FRONTEND (React 19 / Vite)                │
-│                                                             │
-│  ┌──────────┐ ┌──────────┐ ┌─────────┐ ┌───────┐ ┌──────┐  │
-│  │   Home   │ │ Products │ │ AI Chat │ │Compare│ │ Cart │  │
-│  └──────────┘ └──────────┘ └────┬────┘ └───────┘ └──────┘  │
-│                                 │                           │
-│              Axios HTTP ────────┤                            │
-└─────────────────────────────────┼───────────────────────────┘
-                                  │
-                                  ▼
-┌─────────────────────────────────────────────────────────────┐
-│                BACKEND (Express / TypeScript)                │
-│                                                             │
-│  ┌─────────────┐    ┌──────────────────────────────────┐    │
-│  │ /api/products│    │          /api/chat               │    │
-│  │  (REST CRUD) │    │                                  │    │
-│  └──────┬──────┘    │  1. Send messages to Groq LLM    │    │
-│         │           │  2. LLM selects tool + params     │    │
-│         │           │  3. Execute tool (DB query)       │    │
-│         │           │  4. Feed results back to LLM      │    │
-│         │           │  5. Return grounded response      │    │
-│         │           └──────────────┬───────────────────┘    │
-│         │                          │                        │
-│         └──────────┬───────────────┘                        │
-│                    │                                        │
-└────────────────────┼────────────────────────────────────────┘
-                     │
-          ┌──────────┴──────────┐
-          │                     │
-          ▼                     ▼
-┌──────────────────┐  ┌──────────────────┐
-│   Supabase       │  │    Groq Cloud    │
-│  (PostgreSQL)    │  │   (LLM Engine)   │
-│                  │  │                  │
-│  • products      │  │  • Tool calling  │
-│  • cart_items    │  │  • Chat completions│
-│  • auth.users    │  │  • Model: GPT-OSS│
-└──────────────────┘  └──────────────────┘
-```
-
----
-
-## 🧩 Key Engineering Decisions
-
-| Decision | Rationale |
-|:---------|:----------|
-| **Two-turn LLM loop** | Ensures AI responses are grounded in real database records, eliminating hallucinated specs and prices |
-| **Name-to-ID resolution** | Users can refer to products by name (e.g. "Dell Inspiron 15") — the backend resolves to UUIDs via fuzzy `ILIKE` matching |
-| **Dual system prompts** | First call uses a rich system prompt (tool selection); second call uses a strict "use only tool data" prompt to prevent fabrication |
-| **Context API over Redux** | Three lightweight contexts (`Auth`, `Cart`, `Compare`) avoid the overhead of an external state library for this scale |
-| **localStorage + Supabase sync** | Cart works for guests (localStorage) and persists across devices for authenticated users (Supabase) |
-| **Smart Supabase key resolution** | Backend automatically selects the best available key (service role → anon → fallback) and rejects placeholder values |
-
----
-
-## 📜 Scripts
-
-### Backend
-
-| Command | Description |
-|:--------|:------------|
-| `npm run dev` | Start dev server with hot reload (`tsx watch`) |
-| `npm run build` | Compile TypeScript to JavaScript |
-| `npm start` | Run production build |
-
-### Frontend
-
-| Command | Description |
-|:--------|:------------|
-| `npm run dev` | Start Vite dev server |
-| `npm run build` | Type-check and build for production |
-| `npm run preview` | Preview production build locally |
-| `npm run lint` | Run ESLint |
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! To get started:
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Commit your changes: `git commit -m "Add your feature"`
-4. Push to your branch: `git push origin feature/your-feature`
-5. Open a Pull Request
+- **LLM Integration & Prompt Design**: Implemented server-side prompt engineering using Groq SDK to guarantee structured, accurate product suggestions.
+- **Voice User Interface (VUI)**: Built real-time speech recognition hook using browser-native APIs for improved UX accessibility.
+- **Complex UI State Management**: Architected global state via React Context for managing product selections, dynamic comparison counters, and modal notifications without external heavy dependencies.
 
 ---
 
