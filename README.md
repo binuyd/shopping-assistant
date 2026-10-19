@@ -225,13 +225,6 @@ The app will run on `http://localhost:5173`.
 
 ---
 
-## 💡 Key Highlights for Portfolio & Resume
-
-- **LLM Integration & Prompt Design**: Implemented server-side prompt engineering using Groq SDK to guarantee structured, accurate product suggestions.
-- **Voice User Interface (VUI)**: Built real-time speech recognition hook using browser-native APIs for improved UX accessibility.
-- **Complex UI State Management**: Architected global state via React Context for managing product selections, dynamic comparison counters, and modal notifications without external heavy dependencies.
-
----
 
 ## 📄 License
 
