@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "test": "GROQ_API_KEY=dummy SUPABASE_URL=http://localhost SUPABASE_ANON_KEY=dummy node --test --import tsx tests/*.test.ts"
   }
   ,
 

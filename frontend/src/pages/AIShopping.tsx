@@ -6,11 +6,33 @@ import { sendMessage } from '../api'
 import { useCompare } from '../context/CompareContext'
 import { Scale, Check, Star, Mic, MicOff } from 'lucide-react'
 
+interface SpeechRecognitionEventLike {
+  results: ArrayLike<{
+    0: {
+      transcript: string
+    }
+  }>
+  error?: unknown
+}
+
+interface SpeechRecognitionLike {
+  continuous: boolean
+  interimResults: boolean
+  lang: string
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null
+  onerror: ((event: SpeechRecognitionEventLike) => void) | null
+  onend: (() => void) | null
+  start: () => void
+  stop: () => void
+}
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike
+
 // Declare Web Speech API interface for TypeScript
 declare global {
   interface Window {
-    SpeechRecognition: any
-    webkitSpeechRecognition: any
+    SpeechRecognition?: SpeechRecognitionConstructor
+    webkitSpeechRecognition?: SpeechRecognitionConstructor
   }
 }
 
@@ -57,23 +79,34 @@ export default function AIShopping() {
 
   const [products, setProducts] = useState<Product[]>([])
 
+  const compareProductsFromState = location.state?.compareProducts
+
   useEffect(() => {
-    if (location.state?.compareProducts && Array.isArray(location.state.compareProducts)) {
-      setProducts(location.state.compareProducts)
-      const names = location.state.compareProducts.map((p: Product) => p.name).join(', ')
-      setMessages([
-        {
-          role: 'assistant',
-          content: `I see you are comparing: **${names}**. Ask me any question to help you decide between them!`
+    let ignore = false
+    if (compareProductsFromState && Array.isArray(compareProductsFromState)) {
+      const initialProducts = compareProductsFromState as Product[]
+      const names = initialProducts.map((p: Product) => p.name).join(', ')
+      Promise.resolve().then(() => {
+        if (!ignore) {
+          setProducts(initialProducts)
+          setMessages([
+            {
+              role: 'assistant',
+              content: `I see you are comparing: **${names}**. Ask me any question to help you decide between them!`
+            }
+          ])
         }
-      ])
+      })
     }
-  }, [location.state])
+    return () => {
+      ignore = true
+    }
+  }, [compareProductsFromState])
 
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [isListening, setIsListening] = useState(false)
-  const recognitionRef = useRef<any>(null)
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
 
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -83,14 +116,14 @@ export default function AIShopping() {
       recognition.interimResults = true
       recognition.lang = 'en-US'
 
-      recognition.onresult = (event: any) => {
+      recognition.onresult = (event: SpeechRecognitionEventLike) => {
         const transcript = Array.from(event.results)
-          .map((result: any) => result[0].transcript)
+          .map(result => result[0].transcript)
           .join('')
         setInput(transcript)
       }
 
-      recognition.onerror = (event: any) => {
+      recognition.onerror = (event: SpeechRecognitionEventLike) => {
         console.error('Speech recognition error:', event.error)
         setIsListening(false)
       }

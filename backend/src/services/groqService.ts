@@ -36,11 +36,14 @@ const groq = new Groq({
 export async function listModels() {
   const models = await groq.models.list()
 
-  return models.data.map(model => ({
-    id: model.id,
-    active: model.active,
-    context_window: model.context_window
-  }))
+  return models.data.map(model => {
+    const m = model as unknown as Record<string, unknown>
+    return {
+      id: model.id,
+      active: m.active,
+      context_window: m.context_window
+    }
+  })
 }
 
 // ============================================================
