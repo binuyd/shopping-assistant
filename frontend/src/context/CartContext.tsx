@@ -30,6 +30,9 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
 
+let cartToastCounter = 0
+const createCartToastId = () => `toast_${Date.now()}_${++cartToastCounter}`
+
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth()
   const hasLoadedUserCart = useRef(false)
@@ -46,14 +49,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     if (!user) {
-      hasLoadedUserCart.current = false
-      try {
-        const saved = localStorage.getItem('cartItems')
-        if (saved) {
-          setItems(JSON.parse(saved))
-        }
-      } catch {
-        setItems([])
+      if (hasLoadedUserCart.current) {
+        hasLoadedUserCart.current = false
+        queueMicrotask(() => {
+          try {
+            const saved = localStorage.getItem('cartItems')
+            setItems(saved ? JSON.parse(saved) : [])
+          } catch {
+            setItems([])
+          }
+        })
       }
       return
     }
@@ -90,7 +95,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [user])
 
   const addToast = (text: string, type: 'success' | 'info' | 'warning' = 'info') => {
-    const id = Math.random().toString(36).slice(2, 9)
+    const id = createCartToastId()
     setToasts(prev => [...prev, { id, text, type }])
     setTimeout(() => removeToast(id), 3500)
   }
