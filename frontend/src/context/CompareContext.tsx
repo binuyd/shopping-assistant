@@ -19,6 +19,9 @@ interface CompareContextType {
 
 const CompareContext = createContext<CompareContextType | undefined>(undefined)
 
+let compareToastCounter = 0
+const createCompareToastId = () => `cmp_toast_${Date.now()}_${++compareToastCounter}`
+
 export const CompareProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [compareProducts, setCompareProducts] = useState<Product[]>(() => {
     try {
@@ -32,7 +35,7 @@ export const CompareProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [toasts, setToasts] = useState<ToastMessage[]>([])
 
   const addToast = (text: string, type: 'success' | 'info' | 'warning' = 'info') => {
-    const id = Math.random().toString(36).substring(2, 9)
+    const id = createCompareToastId()
     setToasts(prev => [...prev, { id, text, type }])
     setTimeout(() => {
       removeToast(id)
