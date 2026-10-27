@@ -38,8 +38,8 @@ export async function listModels() {
 
   return models.data.map(model => ({
     id: model.id,
-    active: model.active,
-    context_window: model.context_window
+    created: model.created,
+    owned_by: model.owned_by
   }))
 }
 
@@ -51,7 +51,6 @@ export async function testGroq() {
   try {
     const response = await groq.chat.completions.create({
       model: 'openai/gpt-oss-120b',
-
       messages: [
         {
           role: 'user',
@@ -60,26 +59,11 @@ export async function testGroq() {
       ]
     })
 
-    console.log('Groq response:', response)
-
     return response.choices[0]?.message?.content ?? ''
-
   } catch (error) {
-    console.error('GROQ ERROR:', error)
     throw error
   }
 }
-
-// ============================================================
-// DEBUG - CHECK API KEY
-// ============================================================
-
-console.log(
-  'Groq key loaded:',
-  process.env.GROQ_API_KEY
-    ? `${process.env.GROQ_API_KEY.slice(0, 7)}...`
-    : 'NO KEY'
-)
 
 // ============================================================
 // AI TOOLS
@@ -173,12 +157,12 @@ const tools = [
 ]
 
 // ============================================================
-// RUN TOOL
+// TOOL ARGUMENT NORMALIZERS & LOOKUP HELPERS
 // ============================================================
 
 export function normalizeProductLookupArgs(args: Record<string, unknown>) {
-  const productId = typeof args.product_id === 'string' ? args.product_id : undefined
-  const productName = typeof args.product_name === 'string' ? args.product_name.trim() : undefined
+  const productId = typeof args.product_id === 'string' && args.product_id.trim() ? args.product_id.trim() : undefined
+  const productName = typeof args.product_name === 'string' && args.product_name.trim() ? args.product_name.trim() : undefined
 
   return {
     productId,
@@ -207,30 +191,49 @@ export function normalizeProductComparisonArgs(args: Record<string, unknown>) {
   }
 }
 
-async function resolveProductNameToId(productName: string) {
-  if (!productName) {
+async function resolveProductNameToId(productName: string): Promise<string | null> {
+  const cleanName = productName ? productName.trim() : ''
+  if (!cleanName) {
     return null
   }
 
-  const { data, error } = await supabase
-    .from('products')
-    .select('id')
-    .ilike('name', `%${productName}%`)
-    .limit(1)
+  try {
+    // 1. Direct case-insensitive substring match
+    const { data, error } = await supabase
+      .from('products')
+      .select('id')
+      .ilike('name', `%${cleanName}%`)
+      .limit(1)
 
-  if (error) {
-    throw error
+    if (!error && data && data.length > 0 && data[0]?.id) {
+      return data[0].id
+    }
+
+    // 2. Fallback: try individual significant words (e.g. model keywords)
+    const words = cleanName.split(/\s+/).filter(w => w.length > 2)
+    for (const word of words) {
+      const { data: wordData, error: wordErr } = await supabase
+        .from('products')
+        .select('id')
+        .ilike('name', `%${word}%`)
+        .limit(1)
+
+      if (!wordErr && wordData && wordData.length > 0 && wordData[0]?.id) {
+        return wordData[0].id
+      }
+    }
+  } catch {
+    return null
   }
 
-  return data?.[0]?.id ?? null
+  return null
 }
 
-async function resolveProductNamesToIds(productNames: string[]) {
+async function resolveProductNamesToIds(productNames: string[]): Promise<string[]> {
   const ids: string[] = []
 
   for (const productName of productNames) {
     const resolvedId = await resolveProductNameToId(productName)
-
     if (resolvedId) {
       ids.push(resolvedId)
     }
@@ -243,86 +246,87 @@ async function runTool(
   name: string,
   args: Record<string, unknown>
 ) {
-  console.log('Running tool:', name)
-  console.log('Tool arguments:', args)
-
   switch (name) {
-
     // --------------------------------------------------------
     // SEARCH PRODUCTS
     // --------------------------------------------------------
+    case 'search_products': {
+      const maxPrice = args.max_price !== undefined && !isNaN(Number(args.max_price))
+        ? Number(args.max_price)
+        : undefined
 
-    case 'search_products':
+      const minRam = args.min_ram !== undefined && !isNaN(Number(args.min_ram))
+        ? Number(args.min_ram)
+        : undefined
 
-      return await searchProducts({
-        category:
-          args.category as string | undefined,
-
-        max_price:
-          args.max_price !== undefined
-            ? Number(args.max_price)
-            : undefined,
-
-        min_ram:
-          args.min_ram !== undefined
-            ? Number(args.min_ram)
-            : undefined,
-
-        brand:
-          args.brand as string | undefined
-      })
+      try {
+        return await searchProducts({
+          category: typeof args.category === 'string' ? args.category.trim() : undefined,
+          max_price: maxPrice,
+          min_ram: minRam,
+          brand: typeof args.brand === 'string' ? args.brand.trim() : undefined
+        })
+      } catch {
+        return []
+      }
+    }
 
     // --------------------------------------------------------
     // GET PRODUCT DETAILS
     // --------------------------------------------------------
-
     case 'get_product_details': {
       const { productId, productName } = normalizeProductLookupArgs(args)
 
-      const resolvedProductId =
-        productId ??
-        (productName ? await resolveProductNameToId(productName) : null)
-
-      if (!resolvedProductId) {
-        throw new Error(
-          `No product found for ${productName ?? productId ?? 'the requested product'}`
-        )
+      let resolvedProductId = productId
+      if (!resolvedProductId && productName) {
+        resolvedProductId = (await resolveProductNameToId(productName)) ?? undefined
       }
 
-      return await getProductById(resolvedProductId)
+      if (!resolvedProductId) {
+        return {
+          error: `No product found matching "${productName || productId || 'requested product'}"`
+        }
+      }
+
+      try {
+        return await getProductById(resolvedProductId)
+      } catch {
+        return {
+          error: `Product details could not be retrieved for ${productName || resolvedProductId}`
+        }
+      }
     }
 
     // --------------------------------------------------------
     // COMPARE PRODUCTS
     // --------------------------------------------------------
-
     case 'compare_products': {
       const { productIds, productNames } = normalizeProductComparisonArgs(args)
-      const resolvedIds = [
-        ...new Set([
-          ...productIds,
-          ...(await resolveProductNamesToIds(productNames))
-        ])
-      ]
+      const resolvedFromNames = await resolveProductNamesToIds(productNames)
+      const resolvedIds = [...new Set([...productIds, ...resolvedFromNames])]
 
       if (resolvedIds.length === 0) {
-        throw new Error(
-          'No products found for the requested comparison.'
-        )
+        return {
+          error: 'No products found for the requested comparison.'
+        }
       }
 
-      return await compareProducts(resolvedIds)
+      try {
+        return await compareProducts(resolvedIds)
+      } catch {
+        return {
+          error: 'Could not fetch products for comparison.'
+        }
+      }
     }
 
     // --------------------------------------------------------
     // UNKNOWN TOOL
     // --------------------------------------------------------
-
     default:
-
-      throw new Error(
-        `Unknown tool: ${name}`
-      )
+      return {
+        error: `Unknown tool: ${name}`
+      }
   }
 }
 
@@ -371,208 +375,134 @@ export function buildFallbackAssistantReply(
 export async function chat(
   messages: ChatMessage[]
 ): Promise<ChatResponse> {
-
-  try {
-
-    // ========================================================
-    // FIRST GROQ REQUEST
-    // ========================================================
-
-    const response =
-      await groq.chat.completions.create(
-        buildChatRequest([
-          {
-            role: 'system',
-
-            content: `
-You are an intelligent dual-purpose AI assistant for our store: serving as both an AI Shopping Assistant and a 24/7 Customer Care & Support Specialist.
+  // ========================================================
+  // FIRST GROQ REQUEST
+  // ========================================================
+  const response = await groq.chat.completions.create(
+    buildChatRequest([
+      {
+        role: 'system',
+        content: `
+You are an intelligent AI Shopping Assistant for LapMart, our dedicated laptop and technology store.
 
 YOUR RESPONSIBILITIES:
-1. CUSTOMER CARE & SUPPORT:
-   - Help users with store policy, order queries, shipping, returns/refunds, warranty, and payment methods.
-   - Return Policy: Standard 30-day return policy for unused items in original packaging. Refunds are processed within 3-5 business days.
-   - Shipping: Standard delivery (3-5 business days), Express delivery (1-2 business days). Free shipping on orders over $500.
-   - Warranty: All electronics and laptops come with a 1-year manufacturer warranty.
-   - Support Escalation: If a user asks to speak with a human or has a complex dispute, give them clear assistance and guide them to submit a ticket at support@techstore.com or call our hotline 1-800-TECH-HELP.
+- Help users find the right laptops and tech products based on their budget, specifications, brand preferences, or use-case (such as programming, gaming, creative work, office productivity, or student use).
+- Use search_products when searching for laptops with specific filters (brand, max_price, min_ram, category).
+- Use get_product_details when the user asks about a specific laptop model or ID.
+- Use compare_products when comparing two or more laptops.
+- Never invent non-existent products, models, prices, or technical specifications. Always rely strictly on the product data returned by the tools.
+- When products are found, clearly explain why they match the user's needs, citing their CPU, RAM, storage, battery life, and price.
+- If no products match the user's criteria, clearly state that no matching products were found in our store inventory and politely suggest adjusting filters or budget.
 
-2. PRODUCT SEARCH & SHOPPING:
-   - Help users find products from our product database using available tools.
-   - Use search_products when searching for laptops/products.
-   - Use get_product_details when asking about specific products.
-   - Use compare_products when comparing products.
-   - Never invent non-existent products or specs.
-
-Be warm, professional, helpful, and clear in formatting your responses using Markdown.
+Be warm, professional, concise, and clear in formatting your responses using Markdown.
 `
-          },
+      },
+      ...messages
+    ])
+  )
 
-          ...messages
-        ])
-      )
+  const assistantMessage = response.choices[0]?.message
 
-    const assistantMessage =
-      response.choices[0]?.message
+  if (!assistantMessage) {
+    throw new Error('No response received from Groq')
+  }
 
-    if (!assistantMessage) {
-      throw new Error(
-        'No response received from Groq'
-      )
+  // ========================================================
+  // NO TOOL CALL
+  // ========================================================
+  if (
+    !assistantMessage.tool_calls ||
+    assistantMessage.tool_calls.length === 0
+  ) {
+    return {
+      message: assistantMessage.content ?? '',
+      products: []
     }
+  }
 
-    console.log(
-      'AI response:',
-      JSON.stringify(
-        assistantMessage,
-        null,
-        2
-      )
-    )
+  // ========================================================
+  // TOOL CALL (Cap execution to max 5 tools)
+  // ========================================================
+  const toolCallsToExecute = assistantMessage.tool_calls.slice(0, 5)
+  const toolResults: unknown[] = []
 
-    // ========================================================
-    // NO TOOL CALL
-    // ========================================================
+  for (const toolCall of toolCallsToExecute) {
+    const toolName = toolCall.function.name
+    let toolArgs: Record<string, unknown> = {}
 
-    if (
-      !assistantMessage.tool_calls ||
-      assistantMessage.tool_calls.length === 0
-    ) {
-
-      return {
-        message:
-          assistantMessage.content ?? '',
-
-        products: []
+    try {
+      if (toolCall.function.arguments) {
+        toolArgs = JSON.parse(toolCall.function.arguments) as Record<string, unknown>
       }
+    } catch {
+      toolArgs = {}
     }
 
-    // ========================================================
-    // TOOL CALL
-    // ========================================================
-
-    const toolResults: unknown[] = []
-
-    for (
-      const toolCall
-      of assistantMessage.tool_calls
-    ) {
-
-      const toolName =
-        toolCall.function.name
-
-      const toolArgs =
-        JSON.parse(
-          toolCall.function.arguments
-        ) as Record<string, unknown>
-
-      console.log(
-        'Tool name:',
-        toolName
-      )
-
-      console.log(
-        'Tool args:',
-        toolArgs
-      )
-
-      const result =
-        await runTool(
-          toolName,
-          toolArgs
-        )
-
+    try {
+      const result = await runTool(toolName, toolArgs)
       toolResults.push(result)
+    } catch (err) {
+      toolResults.push({
+        error: err instanceof Error ? err.message : 'Tool execution failed'
+      })
     }
+  }
 
-    // ========================================================
-    // SECOND GROQ REQUEST
-    // ========================================================
+  // ========================================================
+  // SECOND GROQ REQUEST
+  // ========================================================
+  const toolMessages = toolCallsToExecute.map((toolCall, index) => ({
+    role: 'tool' as const,
+    tool_call_id: toolCall.id,
+    content: JSON.stringify(toolResults[index])
+  }))
 
-    const toolMessages = assistantMessage
-      .tool_calls
-      .map((toolCall, index) => ({
-        role: 'tool' as const,
-
-        tool_call_id: toolCall.id,
-
-        content: JSON.stringify(
-          toolResults[index]
-        )
-      }))
-
-    const finalResponse =
-      await groq.chat.completions.create(
-        buildChatRequest([
-          {
-            role: 'system',
-
-            content: `
-You are an AI shopping assistant.
+  const finalResponse = await groq.chat.completions.create(
+    buildChatRequest([
+      {
+        role: 'system',
+        content: `
+You are an AI shopping assistant for LapMart.
 
 Use ONLY the product data returned by the tools.
-
 Do not invent products, prices, ratings, specifications, or features.
-
 Give the user a helpful recommendation based on their requirements.
-
 If multiple products were returned, explain which ones are the best choices and why.
-
-Keep the answer clear and concise.
+If no products were found, state clearly that nothing matched their search criteria and suggest alternatives or broader filters.
+Keep the answer clear, helpful, and concise using Markdown.
 `
-          },
+      },
+      ...messages,
+      assistantMessage as any,
+      ...toolMessages
+    ])
+  )
 
-          ...messages,
+  const finalMessage = finalResponse.choices[0]?.message?.content ?? ''
 
-          assistantMessage as any,
-
-          ...toolMessages
-        ])
-      )
-
-    const finalMessage =
-      finalResponse
-        .choices[0]
-        ?.message
-        ?.content ?? ''
-
-    // ========================================================
-    // EXTRACT PRODUCTS
-    // ========================================================
-
-    const products = toolResults
-      .flatMap(result => {
-
-        if (Array.isArray(result)) {
-          return result
-        }
-
-        if (result && typeof result === 'object') {
-          return [result]
-        }
-
-        return []
-      })
-
-    const fallbackMessage =
-      products.length === 0
-        ? buildFallbackAssistantReply(products, messages[messages.length - 1]?.content ?? '')
-        : finalMessage
-
-    // ========================================================
-    // RETURN FINAL RESULT
-    // ========================================================
-
-    return {
-      message: fallbackMessage || finalMessage,
-      products: products as ChatResponse['products']
+  // ========================================================
+  // EXTRACT PRODUCTS
+  // ========================================================
+  const products = toolResults.flatMap(result => {
+    if (Array.isArray(result)) {
+      return result
     }
+    if (result && typeof result === 'object' && !('error' in result) && 'id' in result) {
+      return [result]
+    }
+    return []
+  })
 
-  } catch (error) {
+  const fallbackMessage =
+    products.length === 0
+      ? buildFallbackAssistantReply(products, messages[messages.length - 1]?.content ?? '')
+      : finalMessage
 
-    console.error(
-      'Chat/Groq error:',
-      error
-    )
-
-    throw error
+  // ========================================================
+  // RETURN FINAL RESULT
+  // ========================================================
+  return {
+    message: fallbackMessage || finalMessage,
+    products: products as ChatResponse['products']
   }
 }
