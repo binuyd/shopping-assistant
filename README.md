@@ -17,6 +17,7 @@ User: "Find me a laptop under $800 with 16GB RAM for coding"
 ┌──────────────────────────────────────────────────────────┐
 │  1st LLM Call: Groq analyzes intent and selects a tool   │
 │     → search_products({ max_price: 800, min_ram: 16 })   │
+│     → or get_product_details / compare_products          │
 └──────────────────────────┬───────────────────────────────┘
                            │
                            ▼
@@ -43,19 +44,18 @@ User: "Find me a laptop under $800 with 16GB RAM for coding"
 | `get_product_details` | Retrieve full specs for a single product | `product_id` or `product_name` |
 | `compare_products` | Compare 2+ products side by side | `product_ids[]` or `product_names[]` |
 
-The AI can resolve products by **human-readable name** (e.g. "Dell Inspiron 15") — it doesn't require UUIDs from the user.
+The AI can resolve products by **human-readable name** (e.g. "Dell Inspiron 15") using case-insensitive partial and fuzzy matching — it doesn't require UUIDs from the user.
 
 ---
 
 ## Features
 
 - 🧠 **AI Shopping Assistant**: Conversational AI tailored for recommending laptops based on budget, performance requirements (gaming, coding, editing), battery life, and portability.
-- 🎙️ **Voice Search & Speech Input**: Integrated browser-native **Web Speech API** for hands-free audio prompt dictation directly into the chat box.
-- 🎧 **Dual-Mode Customer Support**: Seamless transition between shopping recommendations and customer support / service queries.
-- ⚖️ **Interactive Comparison Workbench**: Compare multiple laptops side-by-side with real-time difference highlighting, spec breakdown, and dynamic counter badges via React Context API (`CompareContext`).
+- 🎙️ **Voice Search & Speech Input**: Integrated browser-native **Web Speech API** for hands-free audio prompt dictation directly into the chat box with graceful fallback.
+- ⚖️ **Interactive Comparison Workbench**: Compare multiple laptops side-by-side with real-time difference highlighting, spec breakdown, and dynamic counter badges via React Context API (`CompareContext`, max 3 items).
 - 🔍 **Advanced Filtering & Catalog**: Multi-criteria catalog filtering by price range, brand, processor, RAM, and GPU.
 - 📝 **Rich Markdown AI Responses**: Rendered with `react-markdown` and `remark-gfm` for structured spec breakdowns and bullet points.
-- ⚡ **High Performance Backend**: Node.js + Express backend powered by **Groq Cloud (LLM Engine)** and **Supabase Database** integration.
+- ⚡ **High Performance Backend**: Node.js + Express 5 backend powered by **Groq Cloud (LLM Engine)** with resilient tool-call parsing and **Supabase Database** integration.
 
 ---
 
@@ -93,7 +93,7 @@ shopping-assistant/
 ├── frontend/
 │   ├── src/
 │   │   ├── api/
-│   │   │   └── index.ts              # Axios client — getProducts, searchProducts, sendMessage
+│   │   │   └── index.ts              # Axios client — getProducts, getProduct, searchProducts, sendMessage
 │   │   ├── components/
 │   │   │   ├── Navbar.tsx             # Top navigation with cart badge & compare counter
 │   │   │   ├── Footer.tsx             # Site footer
@@ -110,7 +110,7 @@ shopping-assistant/
 │   │   │   ├── Home.tsx              # Landing page with hero section & feature cards
 │   │   │   ├── Products.tsx          # Browsable product catalog with filters
 │   │   │   ├── ProductDetails.tsx    # Single product detail view
-│   │   │   ├── AIShopping.tsx        # AI chat interface (shopping + customer care tabs)
+│   │   │   ├── AIShopping.tsx        # AI shopping chat interface with tool-calling recommendations
 │   │   │   ├── Compare.tsx           # Side-by-side comparison workbench
 │   │   │   ├── Cart.tsx              # Shopping cart page
 │   │   │   └── Auth.tsx              # Login / Register page
@@ -118,6 +118,7 @@ shopping-assistant/
 │   │   │   └── product.ts            # Product TypeScript interface
 │   │   ├── App.tsx                   # Router setup & context providers
 │   │   └── main.tsx                  # App entry point
+│   ├── .env.example                  # Frontend environment template
 │   └── package.json
 │
 ├── backend/
@@ -125,8 +126,8 @@ shopping-assistant/
 │   │   ├── config/
 │   │   │   └── supabase.ts           # Supabase client with smart key resolution
 │   │   ├── routes/
-│   │   │   ├── products.ts           # GET /api/products & /api/products/search
-│   │   │   └── chat.ts               # POST /api/chat — receives messages, returns AI response
+│   │   │   ├── products.ts           # GET /api/products, /api/products/search, /api/products/:id
+│   │   │   └── chat.ts               # POST /api/chat — validated messages, returns AI response
 │   │   ├── services/
 │   │   │   ├── groqService.ts        # Core AI engine — tool definitions, two-turn chat loop
 │   │   │   └── productService.ts     # Supabase DB queries (search, getById, compare)
@@ -135,6 +136,8 @@ shopping-assistant/
 │   │   │   ├── chat.ts               # ChatMessage & ChatResponse types
 │   │   │   └── search.ts             # ProductSearchFilters interface
 │   │   └── server.ts                 # Express app entry point
+│   ├── tests/                        # Automated unit tests for tools & config
+│   ├── .env.example                  # Backend environment template
 │   └── package.json
 │
 ├── README.md
@@ -167,13 +170,17 @@ cd backend
 npm install
 ```
 
-Create a `.env` file in the `backend/` directory:
+Copy the example environment file and fill in your keys:
+
+```bash
+cp .env.example .env
+```
+
+Contents of `backend/.env`:
 
 ```env
 PORT=5000
-
 GROQ_API_KEY=your_groq_api_key_here
-
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
@@ -196,14 +203,21 @@ cd frontend
 npm install
 ```
 
-Optionally create a `.env` file in the `frontend/` directory for auth and cart sync:
+Copy the example environment file:
+
+```bash
+cp .env.example .env
+```
+
+Contents of `frontend/.env`:
 
 ```env
+VITE_API_URL=http://localhost:5000/api
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-> **Note:** The frontend Supabase config is optional. Without it, auth and cart sync are disabled but the AI chat and product browsing still work fully.
+> **Note:** Frontend Supabase configuration is optional. Without it, the cart gracefully persists to browser `localStorage` and shopping & AI recommendations work normally.
 
 Start the frontend:
 
@@ -219,12 +233,14 @@ The app will run on `http://localhost:5173`.
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `POST` | `/api/chat` | Sends message history to Groq LLM service and receives AI shopping recommendations |
-| `GET` | `/api/products` | Retrieves product catalog from database / fallback repository |
-| `GET` | `/api/products/:id` | Retrieves detailed information for a specific product |
+| `POST` | `/api/chat` | Validates input messages and executes the Groq tool-calling loop for product recommendations |
+| `GET` | `/api/products` | Retrieves all products sorted by rating |
+| `GET` | `/api/products/search` | Filters products by `category`, `max_price`, `min_ram`, and `brand` |
+| `GET` | `/api/products/:id` | Retrieves complete technical details for a specific product by ID |
+| `GET` | `/api/test-groq` | Connectivity test for Groq LLM API |
+| `GET` | `/api/groq-models` | Lists available Groq models |
 
 ---
-
 
 ## 📄 License
 
