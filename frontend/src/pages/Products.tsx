@@ -124,7 +124,7 @@ export default function Products() {
               <ArrowUpDown className="h-4 w-4 text-slate-500" />
               <select
                 value={sortBy}
-                onChange={e => setSortBy(e.target.value as any)}
+                onChange={e => setSortBy(e.target.value as 'default' | 'price-asc' | 'price-desc' | 'rating-desc' | 'ram-desc')}
                 className="bg-transparent text-xs font-semibold text-slate-700 outline-none cursor-pointer"
               >
                 <option value="default">Sort by: Default</option>
