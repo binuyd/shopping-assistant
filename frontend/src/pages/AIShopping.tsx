@@ -4,17 +4,30 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { sendMessage } from '../api'
 import { useCompare } from '../context/CompareContext'
-import { Scale, Check, Star, Mic, MicOff } from 'lucide-react'
+import { Scale, Check, Star, Mic, MicOff, Bot, Sparkles, Send } from 'lucide-react'
+import type { Product } from '../types/product'
 
-// Declare Web Speech API interface for TypeScript
-declare global {
-  interface Window {
-    SpeechRecognition: any
-    webkitSpeechRecognition: any
-  }
+interface SpeechRecognitionEvent {
+  results: ArrayLike<ArrayLike<{ transcript: string }>>
 }
 
-import type { Product } from '../types/product'
+interface SpeechRecognitionInstance {
+  continuous: boolean
+  interimResults: boolean
+  lang: string
+  onresult: (event: SpeechRecognitionEvent) => void
+  onerror: (event: { error: string }) => void
+  onend: () => void
+  start: () => void
+  stop: () => void
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition?: new () => SpeechRecognitionInstance
+    webkitSpeechRecognition?: new () => SpeechRecognitionInstance
+  }
+}
 
 interface Message {
   role: 'user' | 'assistant'
@@ -23,89 +36,90 @@ interface Message {
 
 export default function AIShopping() {
   const location = useLocation()
-  const [activeTab, setActiveTab] = useState<'shopping' | 'customercare'>('shopping')
 
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      content:
-        "Hi! 👋 I'm your AI shopping assistant. Tell me what you're looking for and I'll find the best products for you."
-    }
-  ])
+  const initialCompare =
+    location.state?.compareProducts && Array.isArray(location.state.compareProducts)
+      ? (location.state.compareProducts as Product[])
+      : null
 
-  // Handle switching tabs
-  const handleTabSwitch = (tab: 'shopping' | 'customercare') => {
-    setActiveTab(tab)
-    if (tab === 'customercare') {
-      setMessages([
-        {
-          role: 'assistant',
-          content:
-            "Hello! 🎧 Welcome to Customer Care & Support. How can I help you today? Ask me about order tracking, shipping, returns, warranty, or store policies!"
-        }
-      ])
-    } else {
-      setMessages([
-        {
-          role: 'assistant',
-          content:
-            "Hi! 👋 I'm your AI shopping assistant. Tell me what you're looking for and I'll find the best products for you."
-        }
-      ])
-    }
-  }
+  const [products, setProducts] = useState<Product[]>(() => initialCompare ?? [])
 
-  const [products, setProducts] = useState<Product[]>([])
-
-  useEffect(() => {
-    if (location.state?.compareProducts && Array.isArray(location.state.compareProducts)) {
-      setProducts(location.state.compareProducts)
-      const names = location.state.compareProducts.map((p: Product) => p.name).join(', ')
-      setMessages([
+  const [messages, setMessages] = useState<Message[]>(() => {
+    if (initialCompare && initialCompare.length > 0) {
+      const names = initialCompare.map(p => p.name).join(', ')
+      return [
         {
           role: 'assistant',
           content: `I see you are comparing: **${names}**. Ask me any question to help you decide between them!`
         }
-      ])
+      ]
     }
-  }, [location.state])
+    return [
+      {
+        role: 'assistant',
+        content:
+          "Hi! 👋 I'm your AI shopping assistant. Tell me what kind of laptop you're looking for (budget, specs, brand, or use-case) and I'll find the best options for you!"
+      }
+    ]
+  })
 
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [isListening, setIsListening] = useState(false)
-  const recognitionRef = useRef<any>(null)
+  const [speechWarning, setSpeechWarning] = useState<string | null>(null)
 
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null)
+
+  // Auto-scroll chat to bottom
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages, loading])
+
+  // Initialize Speech Recognition if available
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     if (SpeechRecognition) {
-      const recognition = new SpeechRecognition()
-      recognition.continuous = false
-      recognition.interimResults = true
-      recognition.lang = 'en-US'
+      try {
+        const recognition = new SpeechRecognition()
+        recognition.continuous = false
+        recognition.interimResults = true
+        recognition.lang = 'en-US'
 
-      recognition.onresult = (event: any) => {
-        const transcript = Array.from(event.results)
-          .map((result: any) => result[0].transcript)
-          .join('')
-        setInput(transcript)
+        recognition.onresult = (event: SpeechRecognitionEvent) => {
+          const transcript = Array.from(event.results)
+            .map(result => result[0]?.transcript ?? '')
+            .join('')
+          setInput(transcript)
+        }
+
+        recognition.onerror = (event: { error: string }) => {
+          setIsListening(false)
+          if (event.error !== 'no-speech') {
+            setSpeechWarning(`Voice error: ${event.error}`)
+            setTimeout(() => setSpeechWarning(null), 4000)
+          }
+        }
+
+        recognition.onend = () => {
+          setIsListening(false)
+        }
+
+        recognitionRef.current = recognition
+      } catch {
+        recognitionRef.current = null
       }
-
-      recognition.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error)
-        setIsListening(false)
-      }
-
-      recognition.onend = () => {
-        setIsListening(false)
-      }
-
-      recognitionRef.current = recognition
     }
   }, [])
 
   const toggleListening = () => {
     if (!recognitionRef.current) {
-      alert('Speech recognition is not supported in this browser. Please use Chrome or Edge.')
+      setSpeechWarning('Speech recognition is not supported in this browser. Please use Chrome or Edge.')
+      setTimeout(() => setSpeechWarning(null), 4500)
       return
     }
 
@@ -114,17 +128,20 @@ export default function AIShopping() {
       setIsListening(false)
     } else {
       try {
+        setSpeechWarning(null)
         recognitionRef.current.start()
         setIsListening(true)
-      } catch (err) {
-        console.error('Error starting speech recognition:', err)
+      } catch {
+        setIsListening(false)
+        setSpeechWarning('Could not start microphone. Check browser permissions.')
+        setTimeout(() => setSpeechWarning(null), 4000)
       }
     }
   }
 
   const handleSend = async () => {
-
-    if (!input.trim() || loading) return
+    const trimmedInput = input.trim()
+    if (!trimmedInput || loading) return
 
     if (isListening && recognitionRef.current) {
       recognitionRef.current.stop()
@@ -133,440 +150,234 @@ export default function AIShopping() {
 
     const userMessage: Message = {
       role: 'user',
-      content: input.trim()
+      content: trimmedInput
     }
 
-    const updatedMessages = [
-      ...messages,
-      userMessage
-    ]
-
+    const updatedMessages = [...messages, userMessage]
     setMessages(updatedMessages)
-
     setInput('')
-
     setLoading(true)
 
     try {
-
-      const data = await sendMessage(
-        updatedMessages
-      )
+      const data = await sendMessage(updatedMessages)
 
       setMessages([
         ...updatedMessages,
         {
           role: 'assistant',
-          content: data.reply || data.message || data.content || ''
+          content: data.reply || data.message || data.content || 'Here are some recommendations based on your request.'
         }
       ])
 
-      setProducts(data.products || [])
-
-    } catch (error) {
-
-      console.error(
-        'AI request failed:',
-        error
-      )
-
+      if (Array.isArray(data.products) && data.products.length > 0) {
+        setProducts(data.products)
+      }
+    } catch {
       setMessages([
         ...updatedMessages,
         {
           role: 'assistant',
-          content:
-            'Sorry, something went wrong while searching for products. Please try again.'
+          content: 'Sorry, I encountered an issue while searching for laptops. Please try again or refine your query.'
         }
       ])
-
     } finally {
-
       setLoading(false)
-
     }
   }
 
-  const handleSuggestion = (
-    suggestion: string
-  ) => {
-
+  const handleSuggestion = (suggestion: string) => {
     setInput(suggestion)
-
   }
 
+  const shoppingSuggestions = [
+    'Laptop under $800 with 16GB RAM',
+    'Best laptop for programming & coding',
+    'Show me Lenovo laptops',
+    'Lightweight laptop with long battery life',
+    'Gaming laptop with dedicated GPU under $1200'
+  ]
+
   return (
-    <div className="min-h-[calc(100vh-64px)] bg-gray-50">
-
+    <div className="min-h-[calc(100vh-64px)] bg-slate-50">
       {/* Header */}
-
-      <div className="border-b bg-white">
-
+      <div className="border-b border-slate-200 bg-white shadow-xs">
         <div className="mx-auto max-w-7xl px-6 py-8">
-
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-
             <div className="flex items-center gap-4">
-
-              <div className={`flex h-12 w-12 items-center justify-center rounded-xl text-2xl transition ${
-                activeTab === 'customercare' ? 'bg-indigo-600 text-white' : 'bg-blue-600 text-white'
-              }`}>
-                {activeTab === 'customercare' ? '🎧' : '🤖'}
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20">
+                <Bot className="h-6 w-6" />
               </div>
-
               <div>
-
-                <h1 className="text-3xl font-bold text-gray-900">
-                  {activeTab === 'customercare' ? 'Customer Care & Support' : 'AI Shopping Assistant'}
-                </h1>
-
-                <p className="mt-1 text-gray-500">
-                  {activeTab === 'customercare' 
-                    ? 'Get 24/7 instant support for orders, returns, warranty & FAQs.'
-                    : 'Tell me what you need and I\'ll find the best products.'}
+                <div className="flex items-center gap-2">
+                  <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+                    AI Shopping Assistant
+                  </h1>
+                  <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
+                    <Sparkles className="h-3 w-3 text-amber-500" />
+                    Interactive
+                  </span>
+                </div>
+                <p className="mt-1 text-sm text-slate-500">
+                  Ask specs, compare options, and find laptops matched to your budget and workload.
                 </p>
-
               </div>
-
             </div>
 
-            {/* Mode Switcher Tabs */}
-            <div className="flex rounded-xl bg-gray-100 p-1 border border-gray-200">
-              <button
-                onClick={() => handleTabSwitch('shopping')}
-                className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition ${
-                  activeTab === 'shopping'
-                    ? 'bg-white text-blue-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <span>🛍️</span>
-                <span>Shopping AI</span>
-              </button>
-              <button
-                onClick={() => handleTabSwitch('customercare')}
-                className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition ${
-                  activeTab === 'customercare'
-                    ? 'bg-white text-indigo-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <span>🎧</span>
-                <span>Customer Care</span>
-              </button>
+            <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span>AI Product Engine Ready</span>
             </div>
-
           </div>
-
         </div>
-
       </div>
 
-
-      {/* Main */}
-
-      <div className="mx-auto max-w-7xl px-6 py-8">
-
-        <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
-
-
-          {/* Chat */}
-
-          <div className="rounded-2xl border bg-white shadow-sm">
-
-            {/* Chat header */}
-
-            <div className="flex items-center justify-between border-b px-6 py-4">
-
-              <div>
-
-                <h2 className="font-semibold text-gray-900">
-                  {activeTab === 'customercare' ? 'Customer Support Agent' : 'Shopping Assistant'}
-                </h2>
-
-                <div className="mt-1 flex items-center gap-2">
-
-                  <span className="h-2 w-2 rounded-full bg-green-500" />
-
-                  <span className="text-xs text-gray-500">
-                    {activeTab === 'customercare' ? 'Customer Care AI live' : 'AI assistant online'}
-                  </span>
-
+      {/* Main Container */}
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8">
+        <div className="grid gap-8 lg:grid-cols-[1fr_400px]">
+          {/* Chat Section */}
+          <div className="flex flex-col rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            {/* Chat Status Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/60 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600 font-bold text-xs">
+                  AI
                 </div>
-
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">Laptop Recommendation Chat</h2>
+                  <p className="text-xs text-slate-500">Powered by tool-calling & specification search</p>
+                </div>
               </div>
-
-              <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                activeTab === 'customercare' 
-                  ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' 
-                  : 'bg-blue-50 text-blue-700 border border-blue-200'
-              }`}>
-                {activeTab === 'customercare' ? '🎧 Customer Support Mode' : '🛍️ Product Finder Mode'}
+              <span className="rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-semibold text-blue-700">
+                🛍️ Laptop Finder
               </span>
-
             </div>
 
+            {/* Warning banner for speech recognition if triggered */}
+            {speechWarning && (
+              <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-xs text-amber-800 flex items-center justify-between transition-all">
+                <span>{speechWarning}</span>
+                <button
+                  type="button"
+                  onClick={() => setSpeechWarning(null)}
+                  className="font-bold text-amber-900 hover:text-black ml-2"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
 
-            {/* Messages */}
-
-            <div className="h-[520px] overflow-y-auto p-6">
-
-              <div className="flex flex-col gap-5">
-
-                {messages.map(
-                  (message, index) => (
-
-                    <div
-                      key={index}
-                      className={`flex ${message.role === 'user'
-                        ? 'justify-end'
-                        : 'justify-start'
-                        }`}
-                    >
-
-                      <div
-                        className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-6 ${message.role === 'user'
-                          ? activeTab === 'customercare' ? 'bg-indigo-600 text-white' : 'bg-blue-600 text-white'
-                          : 'border bg-gray-50 text-gray-800'
-                          }`}
+            {/* Messages Scroll View */}
+            <div className="h-[520px] overflow-y-auto p-6 space-y-4">
+              {messages.map((message, index) => (
+                <div
+                  key={index}
+                  className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[88%] rounded-2xl px-5 py-3.5 text-sm leading-relaxed shadow-xs ${
+                      message.role === 'user'
+                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-tr-none'
+                        : 'border border-slate-200 bg-slate-50 text-slate-800 rounded-tl-none'
+                    }`}
+                  >
+                    {message.role === 'assistant' ? (
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          h1: ({ children }) => (
+                            <h1 className="mb-2 text-lg font-bold text-slate-900">{children}</h1>
+                          ),
+                          h2: ({ children }) => (
+                            <h2 className="mb-2 mt-3 text-base font-bold text-slate-900">{children}</h2>
+                          ),
+                          h3: ({ children }) => (
+                            <h3 className="mb-1 mt-2 text-sm font-semibold text-slate-900">{children}</h3>
+                          ),
+                          p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                          ul: ({ children }) => (
+                            <ul className="mb-2 list-disc pl-5 space-y-1">{children}</ul>
+                          ),
+                          ol: ({ children }) => (
+                            <ol className="mb-2 list-decimal pl-5 space-y-1">{children}</ol>
+                          ),
+                          li: ({ children }) => <li>{children}</li>,
+                          strong: ({ children }) => (
+                            <strong className="font-semibold text-slate-900">{children}</strong>
+                          ),
+                          code: ({ children }) => (
+                            <code className="rounded bg-slate-200 px-1 py-0.5 text-xs text-slate-800">
+                              {children}
+                            </code>
+                          )
+                        }}
                       >
-                        {message.role === 'assistant' ? (
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
-                            components={{
-                              h1: ({ children }) => (
-                                <h1 className="mb-3 text-xl font-bold text-gray-900">
-                                  {children}
-                                </h1>
-                              ),
-
-                              h2: ({ children }) => (
-                                <h2 className="mb-3 mt-4 text-lg font-bold text-gray-900">
-                                  {children}
-                                </h2>
-                              ),
-
-                              h3: ({ children }) => (
-                                <h3 className="mb-2 mt-3 font-semibold text-gray-900">
-                                  {children}
-                                </h3>
-                              ),
-
-                              p: ({ children }) => (
-                                <p className="mb-3 last:mb-0">
-                                  {children}
-                                </p>
-                              ),
-
-                              strong: ({ children }) => (
-                                <strong className="font-bold text-gray-900">
-                                  {children}
-                                </strong>
-                              ),
-
-                              ul: ({ children }) => (
-                                <ul className="mb-3 ml-5 list-disc space-y-1">
-                                  {children}
-                                </ul>
-                              ),
-
-                              ol: ({ children }) => (
-                                <ol className="mb-3 ml-5 list-decimal space-y-1">
-                                  {children}
-                                </ol>
-                              ),
-
-                              li: ({ children }) => (
-                                <li>
-                                  {children}
-                                </li>
-                              ),
-
-                              table: ({ children }) => (
-                                <div className="my-4 overflow-x-auto rounded-lg border">
-                                  <table className="w-full min-w-[500px] border-collapse text-sm">
-                                    {children}
-                                  </table>
-                                </div>
-                              ),
-
-                              thead: ({ children }) => (
-                                <thead className="bg-gray-100">
-                                  {children}
-                                </thead>
-                              ),
-
-                              tbody: ({ children }) => (
-                                <tbody className="divide-y">
-                                  {children}
-                                </tbody>
-                              ),
-
-                              tr: ({ children }) => (
-                                <tr>
-                                  {children}
-                                </tr>
-                              ),
-
-                              th: ({ children }) => (
-                                <th className="border-b px-4 py-3 text-left font-semibold text-gray-700">
-                                  {children}
-                                </th>
-                              ),
-
-                              td: ({ children }) => (
-                                <td className="px-4 py-3 text-gray-700">
-                                  {children}
-                                </td>
-                              ),
-
-                              code: ({ children }) => (
-                                <code className="rounded bg-gray-200 px-1.5 py-0.5 text-xs">
-                                  {children}
-                                </code>
-                              )
-                            }}
-                          >
-                            {message.content}
-                          </ReactMarkdown>
-                        ) : (
-                          message.content
-                        )}
-                      </div>
-
-                    </div>
-
-                  )
-                )}
-
-
-                {/* Loading */}
-
-                {loading && (
-
-                  <div className="flex justify-start">
-
-                    <div className="rounded-2xl border bg-gray-50 px-4 py-3">
-
-                      <div className="flex items-center gap-2">
-
-                        <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400" />
-
-                        <span
-                          className="h-2 w-2 animate-bounce rounded-full bg-gray-400"
-                          style={{
-                            animationDelay:
-                              '150ms'
-                          }}
-                        />
-
-                        <span
-                          className="h-2 w-2 animate-bounce rounded-full bg-gray-400"
-                          style={{
-                            animationDelay:
-                              '300ms'
-                          }}
-                        />
-
-                        <span className="ml-2 text-sm text-gray-500">
-                          {activeTab === 'customercare' ? 'Checking support policy & assistance...' : 'Searching products...'}
-                        </span>
-
-                      </div>
-
-                    </div>
-
+                        {message.content}
+                      </ReactMarkdown>
+                    ) : (
+                      <span className="whitespace-pre-wrap">{message.content}</span>
+                    )}
                   </div>
+                </div>
+              ))}
 
-                )}
+              {loading && (
+                <div className="flex justify-start">
+                  <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 shadow-xs">
+                    <span className="h-2 w-2 animate-bounce rounded-full bg-blue-500" style={{ animationDelay: '0ms' }} />
+                    <span className="h-2 w-2 animate-bounce rounded-full bg-blue-500" style={{ animationDelay: '150ms' }} />
+                    <span className="h-2 w-2 animate-bounce rounded-full bg-blue-500" style={{ animationDelay: '300ms' }} />
+                    <span className="ml-2 text-xs font-medium text-slate-500">Searching laptops & specs...</span>
+                  </div>
+                </div>
+              )}
 
-              </div>
-
+              <div ref={messagesEndRef} />
             </div>
 
-
-            {/* Suggestions */}
-
-            <div className="border-t px-6 py-4">
-
-              <p className="mb-3 text-xs font-medium text-gray-500">
-                Try asking:
+            {/* Suggestions Chips */}
+            <div className="border-t border-slate-100 bg-slate-50/40 px-6 py-3.5">
+              <p className="mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                Suggested queries:
               </p>
-
               <div className="flex flex-wrap gap-2">
-
-                {(activeTab === 'customercare' ? [
-                  'What is your return policy?',
-                  'How long does shipping take?',
-                  'How do I track my order?',
-                  'Do products have warranty coverage?'
-                ] : [
-                  'Laptop under $800 with 16GB RAM',
-                  'Best laptop for programming',
-                  'Show me Lenovo laptops',
-                  'Laptop under $700'
-                ]).map(
-                  suggestion => (
-
-                    <button
-                      key={suggestion}
-                      onClick={() =>
-                        handleSuggestion(
-                          suggestion
-                        )
-                      }
-                      className={`rounded-full border px-3 py-2 text-xs transition ${
-                        activeTab === 'customercare'
-                          ? 'text-indigo-700 hover:border-indigo-500 hover:bg-indigo-50'
-                          : 'text-gray-600 hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600'
-                      }`}
-                    >
-                      {suggestion}
-                    </button>
-
-                  )
-                )}
-
+                {shoppingSuggestions.map(suggestion => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() => handleSuggestion(suggestion)}
+                    className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600 shadow-2xs"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
               </div>
-
             </div>
 
-
-            {/* Input */}
-
-            <div className="border-t p-4">
-
-              <div className="flex gap-3">
-
+            {/* Input Bar */}
+            <div className="border-t border-slate-200 p-4 bg-white">
+              <div className="flex gap-2 sm:gap-3">
                 <input
                   value={input}
-                  onChange={e =>
-                    setInput(e.target.value)
-                  }
+                  onChange={e => setInput(e.target.value)}
                   onKeyDown={e => {
-
-                    if (
-                      e.key === 'Enter' &&
-                      !e.shiftKey
-                    ) {
+                    if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault()
                       handleSend()
                     }
-
                   }}
                   disabled={loading}
                   placeholder={
                     isListening
-                      ? "Listening... Speak now!"
-                      : activeTab === 'customercare'
-                      ? "Ask a customer care question (e.g. returns, warranty, shipping)..."
-                      : "What are you looking for?"
+                      ? 'Listening... Speak now!'
+                      : 'Ask for laptops, budgets, specs, or recommendations...'
                   }
-                  className={`flex-1 rounded-xl border px-4 py-3 text-sm outline-none transition disabled:bg-gray-100 ${
+                  className={`flex-1 rounded-xl border px-4 py-3 text-sm outline-none transition disabled:bg-slate-100 ${
                     isListening
                       ? 'border-red-400 bg-red-50 focus:ring-2 focus:ring-red-200 placeholder-red-400 font-medium'
-                      : activeTab === 'customercare'
-                      ? 'focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100'
-                      : 'focus:border-blue-500 focus:ring-2 focus:ring-blue-100'
+                      : 'border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100'
                   }`}
                 />
 
@@ -574,194 +385,142 @@ export default function AIShopping() {
                   type="button"
                   onClick={toggleListening}
                   disabled={loading}
-                  title={isListening ? "Stop listening" : "Start voice input"}
-                  className={`flex items-center justify-center rounded-xl px-4 py-3 transition ${
+                  title={isListening ? 'Stop listening' : 'Start voice input'}
+                  className={`flex items-center justify-center rounded-xl px-3.5 py-3 transition ${
                     isListening
                       ? 'bg-red-500 text-white animate-pulse hover:bg-red-600'
-                      : 'border border-gray-300 text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                      : 'border border-slate-300 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                   }`}
                 >
-                  {isListening ? (
-                    <MicOff className="h-5 w-5" />
-                  ) : (
-                    <Mic className="h-5 w-5" />
-                  )}
+                  {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
                 </button>
 
                 <button
+                  type="button"
                   onClick={handleSend}
-                  disabled={
-                    loading ||
-                    !input.trim()
-                  }
-                  className={`rounded-xl px-6 py-3 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                    activeTab === 'customercare'
-                      ? 'bg-indigo-600 hover:bg-indigo-700'
-                      : 'bg-blue-600 hover:bg-blue-700'
-                  }`}
+                  disabled={loading || !input.trim()}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:from-blue-700 hover:to-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {loading
-                    ? '...'
-                    : 'Send'}
+                  <Send className="h-4 w-4" />
+                  <span className="hidden sm:inline">Send</span>
                 </button>
-
               </div>
-
             </div>
-
           </div>
 
-
-          {/* Product results */}
-
+          {/* Product Results Side Panel */}
           <div>
-
-            <div className="sticky top-6">
-
+            <div className="sticky top-24">
               <div className="mb-4">
-
-                <h2 className="text-xl font-bold text-gray-900">
-                  Recommended Products
-                </h2>
-
-                <p className="mt-1 text-sm text-gray-500">
-                  Products found by the AI assistant
+                <h2 className="text-lg font-bold text-slate-900">Recommended Laptops</h2>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {products.length > 0
+                    ? `Found ${products.length} laptop${products.length > 1 ? 's' : ''} from your conversation`
+                    : 'Matched products will appear here automatically'}
                 </p>
-
               </div>
-
 
               {products.length === 0 ? (
-
-                <div className="rounded-2xl border border-dashed bg-white p-8 text-center">
-
-                  <div className="text-4xl">
-                    🛍️
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-xs">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-2xl text-blue-600 mb-3">
+                    💻
                   </div>
-
-                  <h3 className="mt-4 font-semibold text-gray-900">
-                    No products yet
-                  </h3>
-
-                  <p className="mt-2 text-sm leading-6 text-gray-500">
-                    Tell the AI what you're looking for and matching products will appear here.
+                  <h3 className="font-bold text-slate-800">No products yet</h3>
+                  <p className="mt-2 text-xs leading-relaxed text-slate-500 max-w-xs mx-auto">
+                    Type a query or tap one of the suggested prompts to see real-time specs and recommendations.
                   </p>
-
                 </div>
-
               ) : (
-
-                <div className="space-y-4">
-
-                  {products.map(
-                    product => (
-
-                      <ProductResult
-                        key={product.id}
-                        product={product}
-                      />
-
-                    )
-                  )}
-
+                <div className="space-y-4 max-h-[calc(100vh-180px)] overflow-y-auto pr-1">
+                  {products.map(product => (
+                    <ProductResult key={product.id} product={product} />
+                  ))}
                 </div>
-
               )}
-
             </div>
-
           </div>
-
         </div>
-
       </div>
-
     </div>
   )
 }
 
-
 /* ============================================================
-   PRODUCT RESULT
+   PRODUCT RESULT CARD
 ============================================================ */
 
-function ProductResult({
-  product
-}: {
-  product: Product
-}) {
+function ProductResult({ product }: { product: Product }) {
   const { addToCompare, removeFromCompare, isInCompare } = useCompare()
   const inCompare = isInCompare(product.id)
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs transition hover:shadow-md">
-
       {/* Image */}
       {product.image_url ? (
         <img
           src={product.image_url}
           alt={product.name}
-          className="h-44 w-full object-cover"
+          className="h-40 w-full object-cover"
         />
       ) : (
-        <div className="flex h-44 items-center justify-center bg-slate-100 text-4xl">
+        <div className="flex h-40 items-center justify-center bg-slate-100 text-3xl">
           💻
         </div>
       )}
 
       {/* Content */}
-      <div className="p-5">
+      <div className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase text-blue-600">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-blue-600">
               {product.brand}
             </p>
-            <h3 className="mt-1 font-bold text-slate-900 line-clamp-1">
+            <h3 className="mt-0.5 font-bold text-slate-900 line-clamp-1 text-sm">
               {product.name}
             </h3>
           </div>
-          <span className="whitespace-nowrap text-lg font-extrabold text-blue-600">
+          <span className="whitespace-nowrap text-base font-extrabold text-blue-600">
             ${product.price}
           </span>
         </div>
 
         {/* Rating */}
-        <div className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+        <div className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-slate-700">
           <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
           <span>{product.rating}</span>
           <span className="text-slate-400">/ 5</span>
         </div>
 
         {/* Specs */}
-        <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+        <div className="mt-3 grid grid-cols-2 gap-1.5 text-xs">
           {product.cpu && (
             <div className="rounded-lg bg-slate-50 p-2 border border-slate-100">
-              <span className="block text-[10px] text-slate-400 font-semibold uppercase">CPU</span>
-              <span className="font-medium text-slate-700 truncate block">{product.cpu}</span>
+              <span className="block text-[9px] text-slate-400 font-bold uppercase">CPU</span>
+              <span className="font-medium text-slate-700 truncate block text-xs">{product.cpu}</span>
             </div>
           )}
           {product.ram && (
             <div className="rounded-lg bg-slate-50 p-2 border border-slate-100">
-              <span className="block text-[10px] text-slate-400 font-semibold uppercase">RAM</span>
-              <span className="font-medium text-slate-700">{product.ram} GB</span>
+              <span className="block text-[9px] text-slate-400 font-bold uppercase">RAM</span>
+              <span className="font-medium text-slate-700 text-xs">{product.ram} GB</span>
             </div>
           )}
           {product.storage && (
             <div className="rounded-lg bg-slate-50 p-2 border border-slate-100">
-              <span className="block text-[10px] text-slate-400 font-semibold uppercase">Storage</span>
-              <span className="font-medium text-slate-700">{product.storage} GB</span>
+              <span className="block text-[9px] text-slate-400 font-bold uppercase">Storage</span>
+              <span className="font-medium text-slate-700 text-xs">{product.storage} GB</span>
             </div>
           )}
           {product.battery_hours && (
             <div className="rounded-lg bg-slate-50 p-2 border border-slate-100">
-              <span className="block text-[10px] text-slate-400 font-semibold uppercase">Battery</span>
-              <span className="font-medium text-slate-700">{product.battery_hours}h</span>
+              <span className="block text-[9px] text-slate-400 font-bold uppercase">Battery</span>
+              <span className="font-medium text-slate-700 text-xs">{product.battery_hours}h</span>
             </div>
           )}
         </div>
 
         {/* Actions */}
-        <div className="mt-4 flex gap-2">
+        <div className="mt-3 flex gap-2">
           <Link
             to={`/products/${product.id}`}
             className="flex-1 rounded-xl bg-slate-900 px-3 py-2 text-center text-xs font-semibold text-white transition hover:bg-slate-800"
@@ -770,6 +529,7 @@ function ProductResult({
           </Link>
 
           <button
+            type="button"
             onClick={() => {
               if (inCompare) {
                 removeFromCompare(product.id)
