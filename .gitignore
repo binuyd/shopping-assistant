@@ -5,3 +5,10 @@ dist/
 !.env.example
 coverage/
 *.log
+
+# Project planning and guide docs
+CHECKLIST.md
+IMPLEMENTATION_GUIDE.md
+IMPROVEMENTS.md
+ROADMAP.md
+START_HERE.md
