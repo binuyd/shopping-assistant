@@ -1,18 +1,18 @@
 import axios from 'axios'
 
+const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api'
+  baseURL
 })
 
 export const getProducts = async () => {
   const response = await api.get('/products')
-
   return response.data
 }
 
 export const getProduct = async (id: string) => {
   const response = await api.get(`/products/${id}`)
-
   return response.data
 }
 
@@ -23,7 +23,6 @@ export const searchProducts = async (
     '/products/search',
     { params }
   )
-
   return response.data
 }
 
@@ -33,13 +32,11 @@ export const sendMessage = async (
     content: string
   }[]
 ) => {
-
   const response = await api.post(
     '/chat',
     {
       messages
     }
   )
-
   return response.data
-}
+}
