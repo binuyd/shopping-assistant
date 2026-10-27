@@ -104,7 +104,7 @@ export default function Navbar() {
             }`}
           >
             <Sparkles className="h-4 w-4 text-amber-500 animate-spin-slow" />
-            <span>AI Assistant & Care</span>
+            <span>AI Assistant</span>
           </Link>
 
           {user ? (
