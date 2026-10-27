@@ -51,8 +51,8 @@ The AI can resolve products by **human-readable name** (e.g. "Dell Inspiron 15")
 ## Features
 
 - 🧠 **AI Shopping Assistant**: Conversational AI tailored for recommending laptops based on budget, performance requirements (gaming, coding, editing), battery life, and portability.
-- 🎙️ **Voice Search & Speech Input**: Integrated browser-native **Web Speech API** for hands-free audio prompt dictation directly into the chat box with graceful fallback.
-- ⚖️ **Interactive Comparison Workbench**: Compare multiple laptops side-by-side with real-time difference highlighting, spec breakdown, and dynamic counter badges via React Context API (`CompareContext`, max 3 items).
+- 🎙️ **Voice Search & Speech Input**: Integrated browser-native **Web Speech API** for hands-free audio prompt dictation directly into the chat box.
+- ⚖️ **Interactive Comparison Workbench**: Compare multiple laptops side-by-side with real-time difference highlighting, spec breakdown, and dynamic counter badges via React Context API (`CompareContext`).
 - 🔍 **Advanced Filtering & Catalog**: Multi-criteria catalog filtering by price range, brand, processor, RAM, and GPU.
 - 📝 **Rich Markdown AI Responses**: Rendered with `react-markdown` and `remark-gfm` for structured spec breakdowns and bullet points.
 - ⚡ **High Performance Backend**: Node.js + Express 5 backend powered by **Groq Cloud (LLM Engine)** with resilient tool-call parsing and **Supabase Database** integration.
