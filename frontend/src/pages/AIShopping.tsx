@@ -6,6 +6,7 @@ import { sendMessage } from '../api'
 import { useCompare } from '../context/CompareContext'
 import { Scale, Check, Star, Mic, MicOff, Bot, Sparkles, Send } from 'lucide-react'
 import type { Product } from '../types/product'
+import axios from 'axios'
 
 interface SpeechRecognitionEvent {
   results: ArrayLike<ArrayLike<{ transcript: string }>>
@@ -33,6 +34,8 @@ interface Message {
   role: 'user' | 'assistant'
   content: string
 }
+
+const MAX_INPUT_LENGTH = 500
 
 export default function AIShopping() {
   const location = useLocation()
@@ -65,11 +68,13 @@ export default function AIShopping() {
 
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [requestError, setRequestError] = useState<string | null>(null)
   const [isListening, setIsListening] = useState(false)
   const [speechWarning, setSpeechWarning] = useState<string | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   // Auto-scroll chat to bottom
   const scrollToBottom = () => {
@@ -139,27 +144,38 @@ export default function AIShopping() {
     }
   }
 
-  const handleSend = async () => {
-    const trimmedInput = input.trim()
+  const handleSend = async (
+    retryMessage?: Message,
+    retryBaseMessages?: Message[]
+  ) => {
+    const trimmedInput = (retryMessage?.content ?? input).replace(/\s+/g, ' ').trim()
     if (!trimmedInput || loading) return
+    if (trimmedInput.length > MAX_INPUT_LENGTH) {
+      setRequestError(`Please keep your question under ${MAX_INPUT_LENGTH} characters.`)
+      return
+    }
 
     if (isListening && recognitionRef.current) {
       recognitionRef.current.stop()
       setIsListening(false)
     }
 
-    const userMessage: Message = {
+    const userMessage: Message = retryMessage ?? {
       role: 'user',
       content: trimmedInput
     }
 
-    const updatedMessages = [...messages, userMessage]
+    const updatedMessages = [...(retryBaseMessages ?? messages), userMessage]
     setMessages(updatedMessages)
     setInput('')
     setLoading(true)
+    setRequestError(null)
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+    const timeout = window.setTimeout(() => controller.abort(), 25_000)
 
     try {
-      const data = await sendMessage(updatedMessages)
+      const data = await sendMessage(updatedMessages, controller.signal)
 
       setMessages([
         ...updatedMessages,
@@ -172,16 +188,36 @@ export default function AIShopping() {
       if (Array.isArray(data.products) && data.products.length > 0) {
         setProducts(data.products)
       }
-    } catch {
+    } catch (error: unknown) {
+      if (axios.isCancel(error) || (error instanceof DOMException && error.name === 'AbortError')) {
+        setRequestError('The request timed out. Please retry.')
+      } else if (axios.isAxiosError(error) && error.response?.status === 400) {
+        setRequestError(error.response.data?.error || 'Please check your message and try again.')
+      } else if (axios.isAxiosError(error) && error.response?.status === 429) {
+        setRequestError('Too many requests right now. Please wait a moment and retry.')
+      } else {
+        setRequestError('Unable to reach the laptop assistant. Please retry.')
+      }
       setMessages([
         ...updatedMessages,
         {
           role: 'assistant',
-          content: 'Sorry, I encountered an issue while searching for laptops. Please try again or refine your query.'
+          content: 'I could not complete that search. Use the retry button below to try again.'
         }
       ])
     } finally {
+      window.clearTimeout(timeout)
+      abortControllerRef.current = null
       setLoading(false)
+    }
+  }
+
+  const handleRetry = () => {
+    const lastUserMessage = [...messages].reverse().find(message => message.role === 'user')
+    if (lastUserMessage) {
+      setRequestError(null)
+      const lastUserIndex = messages.lastIndexOf(lastUserMessage)
+      void handleSend(lastUserMessage, messages.slice(0, lastUserIndex))
     }
   }
 
@@ -357,11 +393,19 @@ export default function AIShopping() {
             </div>
 
             {/* Input Bar */}
+            {requestError && (
+              <div className="flex items-center justify-between gap-3 border-t border-red-100 bg-red-50 px-6 py-3 text-sm text-red-700">
+                <span>{requestError}</span>
+                <button type="button" onClick={() => handleRetry()} className="font-semibold underline">
+                  Retry
+                </button>
+              </div>
+            )}
             <div className="border-t border-slate-200 p-4 bg-white">
               <div className="flex gap-2 sm:gap-3">
                 <input
                   value={input}
-                  onChange={e => setInput(e.target.value)}
+                  onChange={e => setInput(e.target.value.slice(0, MAX_INPUT_LENGTH))}
                   onKeyDown={e => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault()
@@ -397,7 +441,7 @@ export default function AIShopping() {
 
                 <button
                   type="button"
-                  onClick={handleSend}
+                  onClick={() => void handleSend()}
                   disabled={loading || !input.trim()}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:from-blue-700 hover:to-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
