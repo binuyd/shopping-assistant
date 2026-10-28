@@ -15,3 +15,8 @@ export interface ChatResponse {
   message: string
   products: Product[]
 }
+
+export interface ClientChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}

@@ -30,13 +30,15 @@ export const sendMessage = async (
   messages: {
     role: 'user' | 'assistant'
     content: string
-  }[]
+  }[],
+  signal?: AbortSignal
 ) => {
   const response = await api.post(
     '/chat',
     {
       messages
-    }
+    },
+    { signal, timeout: 25_000 }
   )
   return response.data
 }
