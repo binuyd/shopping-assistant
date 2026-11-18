@@ -28,6 +28,7 @@ app.use(
   })
 )
 
+// Limit JSON body size before requests reach routes or external services.
 app.use(express.json({ limit: '1mb' }))
 
 // Routes

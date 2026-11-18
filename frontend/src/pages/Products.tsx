@@ -31,6 +31,7 @@ export default function Products() {
   const { compareProducts, clearAllCompare } = useCompare()
 
   useEffect(() => {
+    // Load the catalog once; search, filters, and sorting run locally on this data.
     const loadProducts = async () => {
       try {
         const data = await getProducts()
@@ -48,7 +49,7 @@ export default function Products() {
   const brands = ['all', ...Array.from(new Set(products.map(p => p.brand).filter(Boolean)))] as string[]
   const categories = ['all', ...Array.from(new Set(products.map(p => p.category).filter(Boolean)))] as string[]
 
-  // Filtering & Sorting Logic
+  // Apply the selected text and facet filters before sorting the visible catalog.
   const filteredProducts = products.filter(product => {
     const matchesSearch = 
       product.name.toLowerCase().includes(search.toLowerCase()) ||

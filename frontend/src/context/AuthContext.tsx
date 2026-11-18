@@ -25,6 +25,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return
     }
 
+    // Restore an existing login, then listen for future sign-in or sign-out changes.
     const loadSession = async () => {
       const { data } = await client.auth.getSession()
       setSession(data.session)

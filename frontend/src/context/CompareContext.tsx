@@ -47,6 +47,7 @@ export const CompareProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }
 
   useEffect(() => {
+    // Keep the comparison list across page reloads in this browser.
     try {
       localStorage.setItem('compareProducts', JSON.stringify(compareProducts))
     } catch (e) {
@@ -55,6 +56,7 @@ export const CompareProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [compareProducts])
 
   const addToCompare = (product: Product): boolean => {
+    // Comparison is capped at three distinct products to keep the table readable.
     if (compareProducts.some(p => p.id === product.id)) {
       addToast(`"${product.name}" is already in your compare list.`, 'warning')
       return false

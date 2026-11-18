@@ -1,4 +1,5 @@
 export interface Product {
+  // Product shape shared by database services, API responses, and AI tools.
   id: string
   name: string
   category: string | null

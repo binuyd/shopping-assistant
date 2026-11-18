@@ -26,14 +26,14 @@ export default function Compare() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const navigate = useNavigate()
 
-  // Calculate Best Specs across selected compare products
+  // Derive the best value in each numeric spec so the comparison can highlight it.
   const lowestPrice = compareProducts.length > 0 ? Math.min(...compareProducts.map(p => p.price ?? Infinity)) : null
   const highestRam = compareProducts.length > 0 ? Math.max(...compareProducts.map(p => p.ram ?? 0)) : null
   const highestStorage = compareProducts.length > 0 ? Math.max(...compareProducts.map(p => p.storage ?? 0)) : null
   const highestBattery = compareProducts.length > 0 ? Math.max(...compareProducts.map(p => p.battery_hours ?? 0)) : null
   const highestRating = compareProducts.length > 0 ? Math.max(...compareProducts.map(p => p.rating ?? 0)) : null
 
-  // Function to check if values in a row differ
+  // Used to highlight rows where the selected products have different values.
   const checkHasDifference = (keyGetter: (p: Product) => string | number | null | undefined) => {
     if (compareProducts.length < 2) return false
     const firstVal = keyGetter(compareProducts[0])

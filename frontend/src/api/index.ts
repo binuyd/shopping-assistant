@@ -6,6 +6,7 @@ const api = axios.create({
   baseURL
 })
 
+// Keep backend calls in one place so pages share the same API base URL.
 export const getProducts = async () => {
   const response = await api.get('/products')
   return response.data

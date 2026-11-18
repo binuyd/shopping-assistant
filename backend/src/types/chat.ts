@@ -12,6 +12,7 @@ export interface ChatMessage {
 }
 
 export interface ChatResponse {
+  // The UI uses these records to render product cards alongside the answer.
   message: string
   products: Product[]
 }

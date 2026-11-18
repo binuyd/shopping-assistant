@@ -1,4 +1,5 @@
 export interface Product {
+  // Fields mirror the products table; nullable fields may be absent in catalog rows.
   id: string
   name: string
   category: string | null

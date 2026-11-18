@@ -72,6 +72,20 @@ test('scope guard includes prior context for a follow-up question', async () => 
   assert.match(captured[0]?.content ?? '', /Dell Inspiron/)
 })
 
+test('scope guard uses the latest message as the request with earlier messages as context', async () => {
+  const captured: Array<{ content: string }> = []
+  const messages: ChatMessage[] = [
+    { role: 'user', content: 'Compare the Dell Inspiron and Lenovo IdeaPad.' },
+    { role: 'assistant', content: 'The Lenovo is less expensive.' },
+    { role: 'user', content: 'Who won the match yesterday?' }
+  ]
+
+  await checkScope(messages, mockClient(classifierResult(false, 'Sports question'), captured))
+
+  assert.match(captured[0]?.content ?? '', /Who won the match yesterday/)
+  assert.match(captured[0]?.content ?? '', /Earlier conversation is context only/)
+})
+
 test('scope guard allows a greeting', async () => {
   const result = await checkScope(
     [{ role: 'user', content: 'Hi there!' }],
@@ -100,17 +114,17 @@ test('scope guard rejects an injection phrase without calling the classifier', a
   assert.equal(classifierCalled, false)
 })
 
-test('scope guard fails open when the classifier fails', async () => {
+test('scope guard blocks when the classifier fails', async () => {
   const result = await checkScope(
     [{ role: 'user', content: 'Find a laptop for programming.' }],
     mockClient(new Error('classifier unavailable'))
   )
 
-  assert.equal(result.inScope, true)
+  assert.equal(result.inScope, false)
   assert.match(result.reason, /unavailable/i)
 })
 
-test('scope guard fails open when the classifier times out', async () => {
+test('scope guard blocks when the classifier times out', async () => {
   const timeout = new Error('aborted')
   timeout.name = 'AbortError'
   const result = await checkScope(
@@ -118,6 +132,6 @@ test('scope guard fails open when the classifier times out', async () => {
     mockClient(timeout)
   )
 
-  assert.equal(result.inScope, true)
+  assert.equal(result.inScope, false)
   assert.match(result.reason, /unavailable/i)
 })

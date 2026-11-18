@@ -11,6 +11,7 @@ const MAX_MESSAGES = 20
 const MAX_MESSAGE_LENGTH = 500
 const controlCharacters = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g
 
+// Normalize chat text before it reaches the classifier or language model.
 export const chatMessageSchema = z.object({
   role: z.enum(['user', 'assistant']),
   content: z.string()
@@ -22,6 +23,8 @@ export const chatRequestSchema = z.object({
   messages: z.array(chatMessageSchema).min(1).max(MAX_MESSAGES)
 }).strict()
 
+// Keep scope checks separate from recommendation generation so unrelated
+// requests can be rejected before product tools are available to the model.
 const scopeClient = new Groq({ apiKey: process.env.GROQ_API_KEY || 'validation-only' })
 
 router.post('/', async (req, res) => {
@@ -37,6 +40,7 @@ router.post('/', async (req, res) => {
     const sanitizedMessages: ChatMessage[] = parsed.data.messages
     const scope = await checkScope(sanitizedMessages, scopeClient)
     if (!scope.inScope) {
+      // The guard also returns false when its classifier is unavailable.
       const response: ChatResponse = { message: OUT_OF_SCOPE_REPLY, products: [] }
       res.json(response)
       return

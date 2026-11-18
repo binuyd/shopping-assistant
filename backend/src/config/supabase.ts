@@ -12,6 +12,7 @@ function isPlaceholderSupabaseKey(value: string | undefined) {
 }
 
 export function resolveSupabaseKey() {
+  // Prefer an explicitly configured server key, then fall back to public keys.
   const candidates = [
     process.env.SUPABASE_SERVICE_ROLE_KEY,
     process.env.SUPABASE_ANON_KEY,

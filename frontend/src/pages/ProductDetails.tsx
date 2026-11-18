@@ -35,6 +35,7 @@ export default function ProductDetails() {
   useEffect(() => {
     if (!id) return
 
+    // The route parameter identifies which product record to load.
     const loadProduct = async () => {
       try {
         const data = await getProduct(id)

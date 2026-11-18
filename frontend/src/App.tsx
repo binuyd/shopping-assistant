@@ -13,6 +13,8 @@ import AuthPage from './pages/Auth'
 import CartPage from './pages/Cart'
 
 function App() {
+  // Providers hold shared state used by pages; the inner providers can read
+  // authentication state from AuthProvider.
   return (
     <AuthProvider>
       <CartProvider>

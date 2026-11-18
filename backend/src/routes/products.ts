@@ -20,6 +20,7 @@ router.get('/', async (_req, res) => {
 
 router.get('/search', async (req, res) => {
   try {
+    // Convert URL query strings to numbers before passing filters to the database layer.
     const rawMaxPrice = req.query.max_price
     const rawMinRam = req.query.min_ram
 

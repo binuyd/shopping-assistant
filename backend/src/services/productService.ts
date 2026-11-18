@@ -18,6 +18,7 @@ export async function getAllProducts(): Promise<Product[]> {
 export async function searchProducts(
   filters: ProductSearchFilters
 ): Promise<Product[]> {
+  // Build one database query from whichever optional filters the caller supplied.
   let query = supabase
     .from('products')
     .select('*')
@@ -43,6 +44,7 @@ export async function searchProducts(
 
   const { data, error } = await query
     .order('rating', { ascending: false })
+    // Chat recommendations return a small set to keep the response focused.
     .limit(6)
 
   if (error) {

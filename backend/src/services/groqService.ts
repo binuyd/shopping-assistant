@@ -33,6 +33,8 @@ const comparisonArgsSchema = z.object({
   product_names: z.array(z.string().trim().min(1).max(200)).max(20).optional()
 }).strict()
 
+// These tool definitions let the model request data; the server performs the
+// actual queries and validates arguments again before executing each tool.
 const tools = [
   {
     type: 'function' as const,
@@ -225,6 +227,8 @@ export async function chat(messages: ChatMessage[]): Promise<ChatResponse> {
     ]
     const products: unknown[] = []
 
+    // A model may need another turn after a tool result, but the iteration cap
+    // prevents an accidental or repeated tool-call loop from running forever.
     for (let iteration = 0; iteration < maxToolIterations; iteration += 1) {
       const response = await createCompletion(conversation, true)
       const assistant = response.choices[0]?.message
@@ -244,6 +248,7 @@ export async function chat(messages: ChatMessage[]): Promise<ChatResponse> {
         tool_calls: calls
       }
       conversation.push(assistantParam)
+      // Execute only a bounded number of calls from one model response.
       for (const call of calls) {
         let args: unknown
         try {

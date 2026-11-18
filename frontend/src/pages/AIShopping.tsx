@@ -87,6 +87,7 @@ export default function AIShopping() {
 
   // Initialize Speech Recognition if available
   useEffect(() => {
+    // Browser speech recognition is optional; text chat remains available without it.
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     if (SpeechRecognition) {
       try {
@@ -165,6 +166,7 @@ export default function AIShopping() {
       content: trimmedInput
     }
 
+    // Keep the conversation history with the latest prompt for contextual follow-ups.
     const updatedMessages = [...(retryBaseMessages ?? messages), userMessage]
     setMessages(updatedMessages)
     setInput('')
@@ -213,6 +215,7 @@ export default function AIShopping() {
   }
 
   const handleRetry = () => {
+    // Retry the last user prompt with only the conversation that came before it.
     const lastUserMessage = [...messages].reverse().find(message => message.role === 'user')
     if (lastUserMessage) {
       setRequestError(null)

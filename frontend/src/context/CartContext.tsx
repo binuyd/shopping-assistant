@@ -48,6 +48,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [toasts, setToasts] = useState<ToastMessage[]>([])
 
   useEffect(() => {
+    // Signed-in users load their cart from Supabase; guests use the saved local cart.
     if (!user) {
       if (hasLoadedUserCart.current) {
         hasLoadedUserCart.current = false
@@ -105,6 +106,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   useEffect(() => {
+    // Persist guest cart changes locally when Supabase account sync is not active.
     if (user) {
       return
     }
@@ -117,6 +119,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [items, user])
 
   useEffect(() => {
+    // Upsert makes repeated syncs update existing product rows instead of duplicating them.
     const client = supabase
 
     if (!user || !client || !hasLoadedUserCart.current) {

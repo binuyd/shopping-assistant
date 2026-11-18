@@ -23,6 +23,7 @@ export default function AddProductModal({
 
   useEffect(() => {
     if (!isOpen) return
+    // Fetch only when opened so the catalog request is not needed on other pages.
     const fetchAll = async () => {
       setLoading(true)
       try {
